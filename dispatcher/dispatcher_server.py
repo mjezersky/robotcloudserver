@@ -1,7 +1,17 @@
 #!/usr/bin/python
 
+## TODO
+## 
+## bind bude mit nejaky lease-time, ten se overi periodicky ( pri kazdem pripojeni to nejde
+## protoze by mohlo zustat posledni funkcni pripojeni klidne aktivni cely den, pri per.
+## konrole muzu aktivni thready ukoncit )
+## pokud lease time vyprsi, bind se maze
+##
+## oddelit data stream od robotu od spravy dispatcheru!!!!
+## upravit chovani bindu - pri bindu na prazdny retezec odstranit (nebo cas 0?)
+
 #reverse proxy server
-SERVER_VERSION = "0.0.25"
+SERVER_VERSION = "0.0.34"
 
 # fwd ports: 2105-2106, 9090, 62100-62199
 # default app server 2107 (bud bind na localhost nebo neforwardovat)
@@ -11,10 +21,11 @@ import socket, threading, time
 BUFSIZE = 1024
 
 class TunnelCommThread(threading.Thread):    
-    def config(self, outSockClnt, inSockClnt):
+    def config(self, outSockClnt, inSockClnt, clientIP):
         self.daemon = True
         self.outSockClnt = outSockClnt
         self.inSockClnt = inSockClnt
+        self.clientIP = clientIP
     def run(self):
         #print "tun comm linked"
         try:
@@ -25,8 +36,11 @@ class TunnelCommThread(threading.Thread):
         except Exception as err:
             print err, "commThread"
             #print "tunnel disconnected, pls close client"
-        self.outSockClnt.close()
-        self.inSockClnt.close()
+        try:
+            self.outSockClnt.close()
+            self.inSockClnt.close()
+        except: pass
+        Collector.currCollector.removeActiveThread(self.clientIP, self)
     
 
 class Tunnel(threading.Thread):
@@ -58,43 +72,51 @@ class Tunnel(threading.Thread):
         
         self.tunSrv = None
         while 1: # pripojeni od RMS
-            if True:
-                self.interrupted = False
-                #print "*RDY*", self.appListenPort
+            self.interrupted = False
+            #print "*RDY*", self.appListenPort
 
-                #klient se pripoji (pres javascript)
+            #klient se pripoji (pres javascript)
+            try:
+                self.inSockClnt, (clnt_ip, clnt_no) = self.inSock.accept()
+            except Exception as err:
+                print "FATAL ERROR!!!", err
+                inSockClnt.close()
+                return
+
+            self.serverIP = Collector.getBoundIP(clnt_ip)
+            if self.serverIP != None:
                 try:
-                    self.inSockClnt, (clnt_ip, clnt_no) = self.inSock.accept()
+                    #print "*attempting to connect*"
+                    #socket pro pripojeni na robota
+                    outSock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    outSock.connect((self.serverIP, self.serverPort))      
+                    #print "*connected, starting comm threads*"
+                    self.outThread = TunnelCommThread()
+                    self.outThread.config(outSock, self.inSockClnt, clnt_ip)
+                    self.outThread.start()
+                    self.inThread = TunnelCommThread()
+                    self.inThread.config(self.inSockClnt, outSock, clnt_ip)
+                    self.inThread.start()
+                    Collector.currCollector.addActiveThreads(clnt_ip, self.outThread, self.inThread)
                 except Exception as err:
-                    print "FATAL ERROR!!!", err
-                    inSockClnt.close()
-                    return
-
-                self.serverIP = Collector.getBoundIP(clnt_ip)
-                if self.serverIP != None:
-                    try:
-                        #print "*attempting to connect*"
-                        #socket pro pripojeni na robota
-                        outSock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                        outSock.connect((self.serverIP, self.serverPort))      
-                        #print "*connected, starting comm threads*"
-                        self.outThread = TunnelCommThread()
-                        self.outThread.config(outSock, self.inSockClnt)
-                        self.outThread.start()
-                        self.inThread = TunnelCommThread()
-                        self.inThread.config(self.inSockClnt, outSock)
-                        self.inThread.start()
-                    except Exception as err:
-                        print "CONNERR:", err
-                        self.inSockClnt.close()
-                else: #serverIP None
-                    print "*unbound connection attempt: "+clnt_ip+"*"
+                    print "CONNERR:", err
                     self.inSockClnt.close()
-            else:
-                time.sleep(1) 
+            else: #serverIP None
+                print "*unbound connection attempt: "+clnt_ip+"*"
+                self.inSockClnt.close()
         print "!!!!!!!!tunnel service stopped!!!!!!!!!"
         inSockClnt.close()
 
+
+class Timer(threading.Thread):
+    def config(self):
+        self.daemon = True
+
+    def run(self):
+        while 1:
+            print "tick"
+            Collector.currCollector.unbindExpired(time.time())                    
+            time.sleep(2) # asi neni nutne kontrolovat kazdou sekundu...
 
 
 class DispatcherAppLink(threading.Thread):
@@ -152,15 +174,26 @@ class DispatcherAppLink(threading.Thread):
                         return "UNAVAILABLE"
                     
                 elif data[0]=="B":
-                    # "BclientIP#serverIP"
+                    # "BclientIP#serverIP" nove "Bclient_ip#server_ip#lease_sec
                     try:
                         content = data[1::]
                         ips = content.split("#")
-                        Collector.bindIP(ips[0], ips[1])
+                        Collector.bindIP(ips[0], ips[1], 20)
                         return "ACK"
                     except Exception as err:
                         print err
                         return "UNAVAILABLE"
+                    
+                #!! debug only
+                elif data[0]=="X":
+                    #XclientIP break all connections to the server from clientIP
+                    try:
+                        Collector.currCollector.breakAllThreads(data[1::])
+                        return "ACK"
+                    except Exception as err:
+                        print err
+                        return "UNAVAILABLE"
+                
                 else:
                     return "BAD_REQUEST"
             
@@ -202,7 +235,7 @@ class DispatcherLink(threading.Thread):
     def requestTunnel(self, tunnelPort):
         self.sendSafe("DISPATCHER_TUNNEL_REQUEST#"+str(tunnelPort))
 
-    def requestApp(self, tunnelPort):
+    def requestApp(self, tunnelPort): # deprec.
         try:
             self.sendSafe("DISPATCHER_APP_REQUEST#"+str(tunnelPort))
             return True
@@ -219,6 +252,16 @@ class DispatcherLink(threading.Thread):
             self.collector.removeLink(self.linkID)
         print "link closed"
 
+    def measureRTT(self):
+        self.sendSafe("ECHO", requireAck=False)
+	t0 = time.time()
+        data = self.sock.recv(16)
+	t1 = time.time()
+	if data == "ECHO":
+            return str( (t1-t0)*1000 ) #RTT v ms
+        else:
+            return "N/A"
+
     def mainloop(self):
         print "new link", self.linkID
         while 1:
@@ -226,8 +269,8 @@ class DispatcherLink(threading.Thread):
             data = self.sock.recv(1024)
             if data == "" or data == None:
                 break
-
-            dataWrapped = "{ 'ip':'"+str(self.clientIP)+"', 'data':"+data+" }"            
+            rtt = self.measureRTT()
+            dataWrapped = "{ 'ip':'"+str(self.clientIP)+"', 'data':"+data+", 'rtt':'"+rtt+"' }"            
             Collector.currCollector.setData(self.linkID, dataWrapped)
             time.sleep(1)
 
@@ -296,8 +339,10 @@ class Collector():
         return Collector.currCollector.bindingGet(IP)
 
     @staticmethod
-    def bindIP(clientIP, serverIP):
-        Collector.currCollector.bindingSet(clientIP, serverIP)
+    def bindIP(clientIP, serverIP, leaseTime):
+        endTime = time.time()+leaseTime
+        print time.time(),"+",leaseTime, "=", endTime
+        Collector.currCollector.bindingSet(clientIP, serverIP, endTime)
 
     #inicializacni metoda
     def __init__(self):
@@ -305,29 +350,79 @@ class Collector():
         self.links = {}
         self.data = {}
         self.bindings = {}
+        self.activeThreads = {}
         self.sem = threading.Semaphore()
         self.semBinding = threading.Semaphore()
+        self.semThreads = threading.Semaphore()
         Collector.currCollector = self
 
-    def getBindings(self):
+    def addActiveThreads(self, clientIP, thread1, thread2):
+        self.semThreads.acquire()
+        if not clientIP in self.activeThreads:
+            self.activeThreads[clientIP] = []
+        self.activeThreads[clientIP].append(thread1)
+        self.activeThreads[clientIP].append(thread2)
+        self.semThreads.release()
+
+    def removeActiveThread(self, clientIP, thread):
+        self.semThreads.acquire()
+        if clientIP in self.activeThreads:
+            self.activeThreads[clientIP].pop(self.activeThreads[clientIP].index(thread))
+        self.semThreads.release()
+
+    def breakAllThreads(self, clientIP):
+        self.semThreads.acquire()
+        if clientIP in self.activeThreads:
+            for thread in self.activeThreads[clientIP]:
+                try:
+                    thread.outSockClnt.close()
+                    thread.inSockClnt.close()
+                except: pass
+        self.semThreads.release()
+
+    def getBindings(self, displayEndTime=False): # optimalizovat?
         self.semBinding.acquire()
-        retVal = str(self.bindings)
+        if displayEndTime:
+            retVal = str(self.bindings)
+        else:
+            retVal = {}
+            for clientIP in self.bindings:
+                retVal[clientIP]=self.bindings[clientIP][0]
+            retVal = str(retVal)
+                    
         self.semBinding.release()
         return retVal
+
+    def unbindExpired(self, currTime):
+        expired = []
+        self.semBinding.acquire()
+        for clientIP in self.bindings:
+            if self.bindings[clientIP][1]<=currTime:
+                expired.append(clientIP)
+
+        #zvlast odstraneni abych neodstranoval ve foru behem ktereho ctu
+        for clientIP in expired:
+            self.bindings.pop(clientIP)
+                
+        self.semBinding.release()
+        
+        for clientIP in expired:
+            self.breakAllThreads(clientIP)
+
 
     def bindingGet(self, IP):
         self.semBinding.acquire()
         try:
-            retVal = self.bindings[IP]
+            retVal = self.bindings[IP][0]
         except KeyError:
             retVal = None
         self.semBinding.release()
         return retVal
         
 
-    def bindingSet(self, clientIP, serverIP):
+    def bindingSet(self, clientIP, serverIP, endTime):
         self.semBinding.acquire()
-        self.bindings[clientIP]=serverIP
+        self.bindings[clientIP]=[serverIP, endTime]
         self.semBinding.release()
 
     def getLinks(self):
@@ -397,6 +492,9 @@ class DispatcherServer():
         self.listenOnIP = listenOnIp
         self.listenOnPort = listenOnPort
         self.collector = Collector()
+        timer = Timer()
+        timer.config()
+        timer.start()
         
     def mainloop(self):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -498,7 +596,7 @@ class Dispatcher():
 
 disp = Dispatcher(listenOnPort=2107)
 disp.addTunnel(9090, 9090)
-#disp.addTunnel(2110, 2111)
+disp.addTunnel(2110, 80)
 disp.startServer()
 
 
