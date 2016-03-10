@@ -11,7 +11,7 @@
 ## upravit chovani bindu - pri bindu na prazdny retezec odstranit (nebo cas 0?)
 
 #reverse proxy server
-SERVER_VERSION = "0.0.34"
+SERVER_VERSION = "0.0.35"
 
 # fwd ports: 2105-2106, 9090, 62100-62199
 # default app server 2107 (bud bind na localhost nebo neforwardovat)
@@ -173,11 +173,11 @@ class DispatcherAppLink(threading.Thread):
                         return "UNAVAILABLE"
                     
                 elif data[0]=="B":
-                    # "BclientIP#serverIP" nove "Bclient_ip#server_ip#lease_sec
+                    # "BclientIP#serverIP#lease_sec"
                     try:
                         content = data[1::]
                         ips = content.split("#")
-                        Collector.bindIP(ips[0], ips[1], 9999999) #TODO
+                        Collector.bindIP(ips[0], ips[1], int(ips[2])) #TODO
                         return "ACK"
                     except Exception as err:
                         print err

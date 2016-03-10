@@ -1,5 +1,5 @@
 <?php
-function bindIP($clntIP, $serverIP) {
+function bindIP($clntIP, $serverIP, $bindTime) {
 	$ip = "localhost";
 	$port = 2107;
 
@@ -16,7 +16,7 @@ function bindIP($clntIP, $serverIP) {
 	socket_write($sock, $msg, strlen($msg));
 	$msg = socket_read($sock, 128);
 
-	$msg = 'B'.$clntIP.'#'.$serverIP;
+	$msg = 'B'.$clntIP.'#'.$serverIP.'#'.$bindTime;
 	echo $msg;
 
 	$lenStr = strlen($msg).'#';
@@ -34,7 +34,7 @@ function bindIP($clntIP, $serverIP) {
 if (isset($_POST["target"])) {
 	$client = $_SERVER['REMOTE_ADDR'];
     $server = htmlspecialchars($_POST["target"]);
-	bindIP($client, $server);
+	bindIP($client, $server, 9999999);
 }
 ?>
 
