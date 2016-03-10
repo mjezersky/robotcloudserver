@@ -114,7 +114,6 @@ class Timer(threading.Thread):
 
     def run(self):
         while 1:
-            print "tick"
             Collector.currCollector.unbindExpired(time.time())                    
             time.sleep(2) # asi neni nutne kontrolovat kazdou sekundu...
 
@@ -178,7 +177,7 @@ class DispatcherAppLink(threading.Thread):
                     try:
                         content = data[1::]
                         ips = content.split("#")
-                        Collector.bindIP(ips[0], ips[1], 20)
+                        Collector.bindIP(ips[0], ips[1], 9999999) #TODO
                         return "ACK"
                     except Exception as err:
                         print err
@@ -341,7 +340,6 @@ class Collector():
     @staticmethod
     def bindIP(clientIP, serverIP, leaseTime):
         endTime = time.time()+leaseTime
-        print time.time(),"+",leaseTime, "=", endTime
         Collector.currCollector.bindingSet(clientIP, serverIP, endTime)
 
     #inicializacni metoda
