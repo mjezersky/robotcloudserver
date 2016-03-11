@@ -89,7 +89,7 @@ if (isset($_POST["target"])) {
 		}
 		dataobj = JSON.parse(data);
 		
-		var tableStr = "<table> <tr> <td>Name</td> <td>Robot IP</td> <td>Bound IPs</td> <td>Time</td> <td>Battery</td> <td>Connection quality</td> <td></td> </tr>";
+		var tableStr = "<table> <tr> <td>Name</td> <td>Robot IP</td> <td>Bound IPs</td> <td>Time</td> <td>Battery</td> <td>RTT</td> <td></td> </tr>";
 		
 		var payload = dataobj.payload;
 		if ("clients" in payload) {
