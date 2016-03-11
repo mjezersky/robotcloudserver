@@ -1,4 +1,12 @@
 <?php
+
+if (count($appointments)>0) {
+	if (strtotime($appointments[0]['Slot']['start']) <=  strtotime('now') && strtotime($appointments[0]['Slot']['end']) > strtotime('now')) {
+		$currAppointmentIP = $slots[$appointments[0]['Slot']['id']];
+	}
+}
+else { $currAppointmentIP = "none"; }
+
 function bindIP($clntIP, $serverIP, $bindTime) {
 	$ip = "localhost";
 	$port = 2107;
@@ -48,6 +56,8 @@ if (isset($_POST["target"])) {
 <body>
 <br>
 
+<?php echo '<div id="hidden_ip_container">'.$currAppointmentIP.'</div>' ?>
+
 <div id="dispatcher_content">
 
 </div>
@@ -63,12 +73,11 @@ if (isset($_POST["target"])) {
 	
 	var interval = null;
 	
-	function bindTo(eventSource, clientIP) {
+	function bindTo(eventSource, robotIP) {
 		clearInterval(interval);
 		eventSource.className += " pressed";
-		console.log("binding to "+clientIP);
-		dbg = clientIP;
-		$.post("", { "target": clientIP });
+		console.log("binding to "+robotIP);
+		$.post("", { "target": robotIP });
 		interval = setInterval(getJSON, 1000);
 		return true;
 	}
@@ -106,7 +115,12 @@ if (isset($_POST["target"])) {
 					tableStr += "<td>" + payload.clients[robot].data.battery + "</td> ";
 					tableStr += "<td>" + payload.clients[robot].rtt + "</td> ";
 					if (boundToMe) {	tableStr += '<td> <a href="#" onclick="bindTo(this,' + "''" + ')">Unbind</a> </td> '; }
-					else { 				tableStr += '<td> <a href="#" onclick="bindTo(this,'+"'" + robotIP + "'" + ')">Bind</a> </td> '; }
+					else { 
+						if ($("#hidden_ip_container").html()==robotIP) {
+							tableStr += '<td> <a href="#" onclick="bindTo(this,'+"'" + robotIP + "'" + ')">Bind</a> </td> ';
+						}
+						else { tableStr += "<td>Not reserved</td>"; }
+					}
 					tableStr += "</tr> ";
 				}
 			}

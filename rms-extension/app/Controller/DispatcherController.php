@@ -1,7 +1,9 @@
 <?php
 
 class DispatcherController extends AppController {
-	public $uses = array('User', 'Role');
+
+	public $helpers = array('Html', 'Paginator', 'Time', 'Rms');
+	public $uses = array('User', 'Role', 'Iface', 'Study', 'Appointment', 'Slot', 'Environment');
 
 	public $components = array(
 		'Paginator',
@@ -29,6 +31,80 @@ class DispatcherController extends AppController {
 	
 	public function admin_index() {
 		$this->Auth->allow("logo");
+				// find the ID
+		$id = $this->Auth->user('id');
+		// grab the entry
+		$user = $this->User->findById($id);
+		if (!$user) {
+			// no valid entry found for the given ID
+			throw new NotFoundException('Invalid user.');
+		}
+		// search for interfaces
+		if ($this->viewVars['admin']) {
+			$this->set('ifaces', $this->Iface->find('all', array('recursive' => 3)));
+		} else {
+			// only show the unrestricted interfaces
+			$ifaces = $this->Iface->find(
+				'all',
+				array('conditions' => array('Iface.unrestricted' => 1), 'recursive' => 3)
+			);
+			$this->set('ifaces', $ifaces);
+		}
+		// search for studies
+		$studies = $this->Study->find(
+			'all',
+			array(
+				'recursive' => 3,
+				'conditions' => array('Study.start <= CURDATE()', 'Study.end >= CURDATE()')
+			)
+		);
+		$this->set('studies', $studies);
+		// do NOT attempt to load all of the logs
+		$this->Appointment->hasMany = array();
+		$appointments = $this->Appointment->find(
+			'all',
+			array(
+				'recursive' => 3,
+				'conditions' => array(
+					'Appointment.user_id' => $id,
+					'Slot.end >= NOW()',
+					'Slot.end < "2038-01-18 22:14:07"'
+				),
+				'order' => array('Slot.start'),
+			)
+		);
+		$this->set('appointments', $appointments);
+		$allAppointments = $this->Appointment->find(
+			'all',
+			array(
+				'recursive' => 3,
+				'conditions' => array('Appointment.user_id' => $id, 'Slot.end < "2038-01-18 22:14:07"'),
+				'order' => array('Slot.start'),
+			)
+		);
+		$this->set('allAppointments', $allAppointments);
+		// store the entry
+		$this->set('user', $user);
+		$this->set('title_for_layout', 'Account');
+		
+		
+		// === parovani slotu a environmentu ===
+		
+		$environments = $this->Environment->find('all');
+		$environList = array();
+		foreach($environments as $env) {
+			$environList[$env['Environment']['id']] = $env['Rosbridge']['host'];
+		}
+		//$this->set('environments', $environList);
+		
+		$slots = $this->Slot->find('all');
+		$slotList = array();
+		foreach($slots as $slot) {
+			$slotList[$slot['Slot']['id']] = $environList[$slot['Condition']['environment_id']];
+		}
+		$this->set('slots', $slotList);
+		
+		
 	}
 
 }

@@ -257,7 +257,7 @@ class DispatcherLink(threading.Thread):
         data = self.sock.recv(16)
 	t1 = time.time()
 	if data == "ECHO":
-            return str( (t1-t0)*1000 ) #RTT v ms
+            return str( int((t1-t0)*1000) ) #RTT v ms
         else:
             return "N/A"
 
