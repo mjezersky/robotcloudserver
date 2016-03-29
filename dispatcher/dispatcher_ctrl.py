@@ -1,10 +1,18 @@
+#!/usr/bin/python
+
+## --------------------------------------------------------------
+## Dispatcher demo app client
+## Author: Matous Jezersky - xjezer01@stud.fit.vutbr.cz
+## All rights reserved
+## --------------------------------------------------------------
+
 import socket
 
 try:
 
     data = "testdata"#raw_input("data=")
 
-    print "mini debug app protocol type 'X' to exit"
+    print "mini debug app protocol type 'exit' to exit"
     
     
 
@@ -22,7 +30,7 @@ try:
         raise Exception("NO ACK")
     while 1:
         data = raw_input("data>>>")
-        if "X" in data: exit()
+        if data == "exit": exit()
         sock.send(str(len(data))+"#") # odeslu delku dat
         sock.send(data) # odeslu data
         lenStr = ""

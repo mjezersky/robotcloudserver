@@ -3,6 +3,7 @@
 	width: 30em;
 	margin: 0 auto;
 	margin-top: 3em;
+	display: none;
 }
 
 #dispatcher_content {
@@ -20,6 +21,9 @@
 	
 }
 
+#hidden_ip_container {
+	display: none;
+}
 
 /* kazdy lichy (indexovano od 0) radek bude sedy */
 #dispatcher_content table tr:nth-child(odd) {

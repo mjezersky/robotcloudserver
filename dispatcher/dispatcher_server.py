@@ -1,17 +1,19 @@
 #!/usr/bin/python
 
+## --------------------------------------------------------------
+## Dispatcher server
+## Author: Matous Jezersky - xjezer01@stud.fit.vutbr.cz
+## All rights reserved
+## --------------------------------------------------------------
+
 ## TODO
 ## 
-## bind bude mit nejaky lease-time, ten se overi periodicky ( pri kazdem pripojeni to nejde
-## protoze by mohlo zustat posledni funkcni pripojeni klidne aktivni cely den, pri per.
-## konrole muzu aktivni thready ukoncit )
-## pokud lease time vyprsi, bind se maze
-##
-## oddelit data stream od robotu od spravy dispatcheru!!!!
+## neco ale uz nevim co
+## graceful exit
 ## upravit chovani bindu - pri bindu na prazdny retezec odstranit (nebo cas 0?)
 
 #reverse proxy server
-SERVER_VERSION = "0.0.35"
+SERVER_VERSION = "0.0.36"
 
 # fwd ports: 2105-2106, 9090, 62100-62199
 # default app server 2107 (bud bind na localhost nebo neforwardovat)
@@ -486,10 +488,11 @@ class Collector():
         self.sem.release()
 
 class DispatcherServer():
-    def __init__(self, listenOnIp, listenOnPort):
+    def __init__(self, listenOnIp, listenOnPort, localOnly=True):
         self.listenOnIP = listenOnIp
         self.listenOnPort = listenOnPort
         self.collector = Collector()
+        self.localOnly = localOnly
         timer = Timer()
         timer.config()
         timer.start()
@@ -509,7 +512,12 @@ class DispatcherServer():
                 if data == "TUNNEL_CLIENT":
                     clnt.send("ID_REQUEST")
                 elif data == "APP_CLIENT":
-                    clnt.send("ACK")
+                    if self.localOnly and clnt_ip != '127.0.0.1':
+                        clnt.send("NACK")
+                        data = ""
+                        print "Warning: client app connection attempt from", clnt_ip
+                    else:
+                        clnt.send("ACK")
                 else:
                     clnt.send("NACK")
             except Exception as err:
@@ -563,7 +571,7 @@ class Dispatcher():
         tun.config(appListenIp, appListenPort, serverPort)
         self.tunnels.append(tun)
 
-    def interruptTunnels(self):
+    def interruptTunnels(self): # deprec
         print "!!!!! BREAKING TUNNELS"
         for tun in self.tunnels:
             tun.interrupt()

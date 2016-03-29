@@ -1,5 +1,11 @@
 #!/usr/bin/python
 
+## --------------------------------------------------------------
+## Dispatcher client
+## Author: Matous Jezersky - xjezer01@stud.fit.vutbr.cz
+## All rights reserved
+## --------------------------------------------------------------
+
 #client ver 0.0.20
 
 import socket, threading, time, random
@@ -70,12 +76,9 @@ class DispatcherClient():
                 try:
                     while 1:
                         inData = self.sock.recv(128) # prijmam data
-                        #print inDa
                         if "DISPATCHER_DATA_REQUEST" in inData:
                             self.updateData()
                             self.sock.send(self.getData())
-                        elif "ECHO" in inData:
-                            self.sock.send("ECHO")
                         else:
                             self.sock.send("NACK")
                 except KeyboardInterrupt: break
@@ -86,7 +89,7 @@ class DispatcherClient():
             print "Reconnecting..."
         self.sock.close()
 
-cloudServerIP = "10.8.0.1"
+cloudServerIP = "localhost"
 robotName = socket.gethostname()
 
 dispClnt = DispatcherClient(robotName, cloudServerIP)

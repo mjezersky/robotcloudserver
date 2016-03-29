@@ -16,7 +16,7 @@ class DispatcherController extends AppController {
 				'Form' => array('passwordHasher' => array('className' => 'Simple', 'hashType' => 'sha256'))
 			)
 		)
-	);
+	);	
 
 	public function beforeFilter() {
 		// only allow unauthenticated account creation
@@ -24,14 +24,13 @@ class DispatcherController extends AppController {
 		$this->Auth->allow('signup', 'login', 'username', 'reset');
 	}
 
-
 	public function admin_vpn() {
 		$this->Auth->allow("logo");
 	}
 	
-	public function admin_index() {
+	public function index() {
 		$this->Auth->allow("logo");
-				// find the ID
+		// find the ID
 		$id = $this->Auth->user('id');
 		// grab the entry
 		$user = $this->User->findById($id);
@@ -73,7 +72,6 @@ class DispatcherController extends AppController {
 				'order' => array('Slot.start'),
 			)
 		);
-		$this->set('appointments', $appointments);
 		$allAppointments = $this->Appointment->find(
 			'all',
 			array(
@@ -81,12 +79,7 @@ class DispatcherController extends AppController {
 				'conditions' => array('Appointment.user_id' => $id, 'Slot.end < "2038-01-18 22:14:07"'),
 				'order' => array('Slot.start'),
 			)
-		);
-		$this->set('allAppointments', $allAppointments);
-		// store the entry
-		$this->set('user', $user);
-		$this->set('title_for_layout', 'Account');
-		
+		);		
 		
 		// === parovani slotu a environmentu ===
 		
@@ -102,9 +95,39 @@ class DispatcherController extends AppController {
 		foreach($slots as $slot) {
 			$slotList[$slot['Slot']['id']] = $environList[$slot['Condition']['environment_id']];
 		}
-		$this->set('slots', $slotList);
 		
 		
+		if (count($appointments)>0) {
+			if (strtotime($appointments[0]['Slot']['start']) <=  strtotime('now') && strtotime($appointments[0]['Slot']['end']) > strtotime('now')) {
+				$currAppointmentIP = $slotList[$appointments[0]['Slot']['id']];
+			}
+		}
+		else { $currAppointmentIP = "none"; }
+		
+		$this->set('currAppointmentIP', $currAppointmentIP);
+		
+		$this->loadModel('DispatcherClient');
+		
+		if (isset($_POST["target"])) {
+			$client = $_SERVER['REMOTE_ADDR'];
+			$server = htmlspecialchars($_POST["target"]);
+			$bindTime = strtotime($appointments[0]['Slot']['end']) - strtotime('now');
+			if ($currAppointmentIP == $server || $server == "") { $this->DispatcherClient->bindIP($client, $server, $bindTime); }
+		}
+
+		$this->set('boundip', $this->DispatcherClient->getBoundIP());
+	}
+	
+	public function admin_index() {
+		$this->Auth->allow("logo");
+		
+		$this->loadModel('DispatcherClient');
+		
+		if (isset($_POST["target"])) {
+			$client = $_SERVER['REMOTE_ADDR'];
+			$server = htmlspecialchars($_POST["target"]);
+			$this->DispatcherClient->bindIP($client, $server, 86400); // admin bind 24h
+		}
 	}
 
 }

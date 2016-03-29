@@ -7,6 +7,8 @@
 <body>
 <br>
 
+<?php echo '<div id="hidden_ip_container">'.$currAppointmentIP.'</div>'?>
+
 <div id="dispatcher_content">
 
 </div>
@@ -65,7 +67,10 @@
 					tableStr += "<td>" + payload.clients[robot].rtt + "</td> ";
 					if (boundToMe) {	tableStr += '<td> <a href="#" onclick="bindTo(this,' + "''" + ')">Unbind</a> </td> '; }
 					else { 
-						tableStr += '<td> <a href="#" onclick="bindTo(this,'+"'" + robotIP + "'" + ')">Bind</a> </td> ';
+						if ($("#hidden_ip_container").html()==robotIP) {
+							tableStr += '<td> <a href="#" onclick="bindTo(this,'+"'" + robotIP + "'" + ')">Bind</a> </td> ';
+						}
+						else { tableStr += "<td>Not reserved</td>"; }
 					}
 					tableStr += "</tr> ";
 				}
