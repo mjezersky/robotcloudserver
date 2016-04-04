@@ -31,13 +31,20 @@
 			<?php echo $this->Html->link('Create New Entry', array('action' => 'add'), array('class' => 'button')); ?>
 			<br /><br />
 			
-			<table> <tr>
+			<table> 
+				<tr> <th></th> <th>ID</th> <th>Name</th> <th>URI</th> <th>Status</th> </tr>
+				<tr>
 				<td>Bound rosbridge status</td>
 				<?php
 					$found = false;
 					foreach ($rosbridges as $rosbridge) {
+						if ($rosbridge['Rosbridge']['host'] == "localhost") { $rosbridge['Rosbridge']['host'] = "127.0.0.1"; }
 						if ($rosbridge['Rosbridge']['host'] == $bound_ip) {
-							echo '<td>';
+							echo '<td data-title="ID">';
+							echo $rosbridge['Rosbridge']['id'];
+							echo '</td> <td data-title="Name">';
+							echo $rosbridge['Rosbridge']['name'];
+							echo '</td> <td data-title="URI">';
 							echo $this->Html->link(
 								__(
 									'%s://%s:%s',

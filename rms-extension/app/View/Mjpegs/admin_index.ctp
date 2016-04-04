@@ -31,16 +31,23 @@
 			<?php echo $this->Html->link('Create New Entry', array('action' => 'add'), array('class' => 'button')); ?>
 			<br /><br />
 			
-			<table> <tr>
+			<table> 
+				<tr> <th></th> <th>ID</th> <th>Name</th> <th>URI</th> <th>Status</th> </tr>
+				<tr>
 				<td>Bound MJPEG status</td>
 				<?php
 					$found = false;
 					foreach ($mjpegs as $mjpeg) {
+						if ($mjpeg['Mjpeg']['host'] == "localhost") { $mjpeg['Mjpeg']['host'] = "127.0.0.1"; }
 						if ($mjpeg['Mjpeg']['host'] == $bound_ip) {
-							echo '<td>';
+							echo '<td data-title="ID">';
+							echo $mjpeg['Mjpeg']['id'];
+							echo '</td> <td data-title="Name">';
+							echo $mjpeg['Mjpeg']['name'];
+							echo '</td> <td data-title="URI">';
 							echo $this->Html->link(
 								__(
-									'%http://%s:%s',
+									'http://%s:%s',
 									Configure::read('VPN_SERVER_IP'),
 									h($mjpeg['Mjpeg']['port'])
 								),
