@@ -6,7 +6,7 @@
 ## All rights reserved
 ## --------------------------------------------------------------
 
-#client ver 0.0.20
+#client ver 0.0.21
 
 import socket, threading, time, random
 
@@ -19,10 +19,11 @@ class DispatcherClient():
         self.dispServerPort = dispServerPort
 
         self.idStr = idStr#str(random.randint(0,10000))       
-        self.data = {"time":"N/A", "battery":"N/A", "conn_quality":"N/A"}
+        self.data = {"message":"N/A", "battery":"N/A", "conn_quality":"N/A"}
         self.socket = None
         self.tunnels = {} #dict tunelu port:[TunnelClient, appIp, appPort, tunIp, tunPort] (viz addTunnel)
         self.dataSem = threading.Semaphore()
+        self.msgFunction = None
         print "my id:", self.idStr
 
     def updateData(self):
@@ -33,8 +34,9 @@ class DispatcherClient():
             f.close()
         except:
             self.data["battery"] = "N/A"
-            
-        self.data["time"] = str(time.ctime()) # cas
+
+        if self.msgFunction != None:
+            self.data["message"] = self.msgFunction()
         self.dataSem.release()
 
     def setData(self, data):
@@ -79,6 +81,8 @@ class DispatcherClient():
                         if "DISPATCHER_DATA_REQUEST" in inData:
                             self.updateData()
                             self.sock.send(self.getData())
+                        elif "ECHO" in inData:
+                            self.sock.send("ECHO")
                         else:
                             self.sock.send("NACK")
                 except KeyboardInterrupt: break
@@ -89,8 +93,14 @@ class DispatcherClient():
             print "Reconnecting..."
         self.sock.close()
 
-cloudServerIP = "localhost"
+#demo function for message content
+def demoFunction():
+    return str(time.ctime())
+
+
+cloudServerIP = "10.8.0.1"
 robotName = socket.gethostname()
 
 dispClnt = DispatcherClient(robotName, cloudServerIP)
+dispClnt.msgFunction = demoFunction
 dispClnt.mainloop()

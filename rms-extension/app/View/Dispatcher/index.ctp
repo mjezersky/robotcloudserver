@@ -40,7 +40,7 @@
 		}
 		dataobj = JSON.parse(data);
 		
-		var tableStr = "<table> <tr> <td>Name</td> <td>Robot IP</td> <td>Bound IPs</td> <td>Time</td> <td>Battery</td> <td>RTT</td> <td></td> </tr>";
+		var tableStr = "<table> <tr> <th>Name</th> <th>Robot IP</th> <th>Bound IPs</th> <th>Message</th> <th>Battery</th> <th>RTT</th> <th></th> </tr>";
 		
 		var payload = dataobj.payload;
 		if ("clients" in payload) {
@@ -59,12 +59,12 @@
 					}
 					if (boundToMe) { 	tableStr += '<tr id="boundToMe"> '; }
 					else { 				tableStr += '<tr> '; } 
-					tableStr += "<td>" + robot + "</td> ";
-					tableStr += "<td>" + robotIP + "</td> ";
-					tableStr += "<td>" + boundIPs + "</td> ";
-					tableStr += "<td>" + payload.clients[robot].data.time + "</td> ";
-					tableStr += "<td>" + payload.clients[robot].data.battery + "</td> ";
-					tableStr += "<td>" + payload.clients[robot].rtt + "</td> ";
+					tableStr += '<td data-title="Name">' + robot + "</td> ";
+					tableStr += '<td data-title="Robot IP">' + robotIP + "</td> ";
+					tableStr += '<td data-title="Bound IPs">' + boundIPs + "</td> ";
+					tableStr += '<td data-title="Message">' + payload.clients[robot].data.message + "</td> ";
+					tableStr += '<td data-title="Battery">' + payload.clients[robot].data.battery + "</td> ";
+					tableStr += '<td data-title="RTT">' + payload.clients[robot].rtt + "</td> ";
 					if (boundToMe) {	tableStr += '<td> <a href="#" onclick="bindTo(this,' + "''" + ')">Unbind</a> </td> '; }
 					else { 
 						if ($("#hidden_ip_container").html()==robotIP) {

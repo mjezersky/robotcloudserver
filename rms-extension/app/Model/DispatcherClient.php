@@ -10,8 +10,8 @@ class DispatcherClient extends AppModel {
 		$json_data = json_decode($json, true);
 		
 		if (empty($json_data['payload'])) { return null; }
-		$myip = $json_data['ip'];
-		if ( array_key_exists($myip, $json_data) ) {
+		$myip = $_SERVER['REMOTE_ADDR']; // can't use IP from JSON, since the request was done by PHP (would show server IP)
+		if ( array_key_exists($myip, $json_data['payload']['bindings']) ) {
 			return $json_data['payload']['bindings'][$myip];
 		}
 		return null;

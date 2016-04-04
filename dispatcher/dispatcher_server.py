@@ -10,6 +10,7 @@
 ## 
 ## neco ale uz nevim co
 ## graceful exit
+## dodelat interrupt
 ## upravit chovani bindu - pri bindu na prazdny retezec odstranit (nebo cas 0?)
 
 #reverse proxy server
