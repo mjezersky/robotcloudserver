@@ -6,109 +6,110 @@
 ## All rights reserved
 ## --------------------------------------------------------------
 
-## TODO
-## 
-## neco ale uz nevim co
-## graceful exit
-## dodelat interrupt
-## upravit chovani bindu - pri bindu na prazdny retezec odstranit (nebo cas 0?)
+SERVER_VERSION = "1.0.0"
 
-#reverse proxy server
-SERVER_VERSION = "0.0.36"
-
-# fwd ports: 2105-2106, 9090, 62100-62199
-# default app server 2107 (bud bind na localhost nebo neforwardovat)
-
-import socket, threading, time
+import socket
+import threading
+import time
 
 BUFSIZE = 1024
 
-class TunnelCommThread(threading.Thread):    
+
+class TunnelCommThread(threading.Thread):
     def config(self, outSockClnt, inSockClnt, clientIP):
         self.daemon = True
         self.outSockClnt = outSockClnt
         self.inSockClnt = inSockClnt
         self.clientIP = clientIP
+
     def run(self):
-        #print "tun comm linked"
+        # print "tun comm linked"
         try:
             while 1:
-                data = self.outSockClnt.recv(BUFSIZE) # prijmu data z tunelu
+                data = self.outSockClnt.recv(BUFSIZE)  # prijmu data z tunelu
                 if not data: break
-                self.inSockClnt.send(data) # odeslu je do RMS
+                self.inSockClnt.send(data)  # odeslu je do RMS
         except Exception as err:
             print err, "commThread"
-            #print "tunnel disconnected, pls close client"
+            # print "tunnel disconnected, pls close client"
         try:
             self.outSockClnt.close()
             self.inSockClnt.close()
-        except: pass
+        except:
+            pass
         Collector.currCollector.removeActiveThread(self.clientIP, self)
-    
+
 
 class Tunnel(threading.Thread):
     def config(self, appListenIP, appListenPort, serverPort):
         self.appListenIP = appListenIP
         self.appListenPort = appListenPort
         self.serverPort = serverPort
-        self.serverIP = None #IP se ziska z bindingu
+        self.serverIP = None  # IP se ziska z bindingu
         self.daemon = True
 
-    def interrupt(self):
+    def interrupt(self):  # deprec?
         # preruseni tunelu (napr. pri prepnuti povoleneho tunelu behem aktivni komunikace)
-        try: self.outSockClnt.close()
-        except Exception as err: pass
-        try: self.inSockClnt.close()
-        except Exception as err: pass
+        try:
+            self.inSockClnt.close()
+        except Exception as err:
+            pass
         self.interrupted = True
-    
-    def run(self):
-        #print "*Tunnel initialized*"
-        #self.tunnelSem = threading.Semaphore()
 
-        #socket pro pripojeni klienta
+    def shutdown(self):
+        # shut down ingoring any errors
+        try: self.inSock.close()
+        except: pass
+        try: self.outSock.close()
+        except: pass
+
+    def run(self):
+        # print "*Tunnel initialized*"
+        # self.tunnelSem = threading.Semaphore()
+
+        # socket pro pripojeni klienta
         self.inSock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.inSock.bind((self.appListenIP, self.appListenPort))
         self.inSock.listen(1)
 
         self.inSockClnt = None
-        
-        self.tunSrv = None
-        while 1: # pripojeni od RMS
-            self.interrupted = False
-            #print "*RDY*", self.appListenPort
 
-            #klient se pripoji (pres javascript)
+        self.tunSrv = None
+        while 1:  # pripojeni od RMS
+            self.interrupted = False
+            # print "*RDY*", self.appListenPort
+
+            # klient se pripoji (pres javascript)
             try:
                 self.inSockClnt, (clnt_ip, clnt_no) = self.inSock.accept()
             except Exception as err:
                 print "FATAL ERROR!!!", err
-                inSockClnt.close()
+                self.inSockClnt.close()
                 return
 
             self.serverIP = Collector.getBoundIP(clnt_ip)
             if self.serverIP != None:
                 try:
-                    #print "*attempting to connect*"
-                    #socket pro pripojeni na robota
-                    outSock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    outSock.connect((self.serverIP, self.serverPort))      
-                    #print "*connected, starting comm threads*"
+                    # print "*attempting to connect*"
+                    # socket pro pripojeni na robota
+                    self.outSock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    self.outSock.connect((self.serverIP, self.serverPort))
+                    # print "*connected, starting comm threads*"
                     self.outThread = TunnelCommThread()
-                    self.outThread.config(outSock, self.inSockClnt, clnt_ip)
+                    self.outThread.config(self.outSock, self.inSockClnt, clnt_ip)
                     self.outThread.start()
                     self.inThread = TunnelCommThread()
-                    self.inThread.config(self.inSockClnt, outSock, clnt_ip)
+                    self.inThread.config(self.inSockClnt, self.outSock, clnt_ip)
                     self.inThread.start()
                     Collector.currCollector.addActiveThreads(clnt_ip, self.outThread, self.inThread)
                 except Exception as err:
                     print "CONNERR:", err
                     self.inSockClnt.close()
-            else: #serverIP None
-                print "*unbound connection attempt: "+clnt_ip+"*"
+            else:  # serverIP None
+                print "*unbound connection attempt: " + clnt_ip + "*"
                 self.inSockClnt.close()
         print "!!!!!!!!tunnel service stopped!!!!!!!!!"
-        inSockClnt.close()
+        self.inSockClnt.close()
 
 
 class Timer(threading.Thread):
@@ -117,8 +118,8 @@ class Timer(threading.Thread):
 
     def run(self):
         while 1:
-            Collector.currCollector.unbindExpired(time.time())                    
-            time.sleep(2) # asi neni nutne kontrolovat kazdou sekundu...
+            Collector.currCollector.unbindExpired(time.time())
+            time.sleep(2)  # asi neni nutne kontrolovat kazdou sekundu...
 
 
 class DispatcherAppLink(threading.Thread):
@@ -126,7 +127,7 @@ class DispatcherAppLink(threading.Thread):
         self.sock = sock
         self.clntIP = clntIP
         self.daemon = True
-        
+
     def run(self):
         try:
             self.mainloop()
@@ -142,31 +143,18 @@ class DispatcherAppLink(threading.Thread):
             for i in dataDict:
                 if dataDict[i] == "":
                     dataDict[i] = "{}"
-                dataArr.append("'"+str(i)+"' : "+dataDict[i])
+                dataArr.append("'" + str(i) + "' : " + dataDict[i])
             if dataArr == []:
                 return "{}"
             dataStr = "{ 'bindings': " + Collector.currCollector.getBindings()
             dataStr += ", 'clients': { " + ", ".join(dataArr) + " } }"
-            dataStr = dataStr.replace("'", '"') #json chce " misto '
+            dataStr = dataStr.replace("'", '"')  # json chce " misto '
             return dataStr
-        elif data == "RESET":
-            Collector.allowedTunnel = None
-            return "ACK"
         elif data == "BINDINGS":
             return Collector.currCollector.getBindings()
         else:
-            if len(data)>0:
-                if data[0]=="A":
-                    try:
-                        linkID = data[1::]
-                        link = Collector.currCollector.getLink(linkID)
-                        print "allowing tunnel from", link.linkID
-                        Collector.allowTunnel(link)
-                        return "ACK"
-                    except Exception as err:
-                        print err
-                        return "UNAVAILABLE"
-                elif data[0]=="G":
+            if len(data) > 0:
+                if data[0] == "G":
                     try:
                         linkID = data[1::]
                         dataDict = Collector.currCollector.getData()
@@ -174,31 +162,30 @@ class DispatcherAppLink(threading.Thread):
                     except Exception as err:
                         print err
                         return "UNAVAILABLE"
-                    
-                elif data[0]=="B":
+
+                elif data[0] == "B":
                     # "BclientIP#serverIP#lease_sec"
                     try:
                         content = data[1::]
                         ips = content.split("#")
-                        Collector.bindIP(ips[0], ips[1], int(ips[2])) #TODO
+                        Collector.bindIP(ips[0], ips[1], int(ips[2]))
                         return "ACK"
                     except Exception as err:
                         print err
                         return "UNAVAILABLE"
-                    
-                #!! debug only
-                elif data[0]=="X":
-                    #XclientIP break all connections to the server from clientIP
+
+                # !! debug only
+                elif data[0] == "X":
+                    # XclientIP break all connections to the server from clientIP
                     try:
                         Collector.currCollector.breakAllThreads(data[1::])
                         return "ACK"
                     except Exception as err:
                         print err
                         return "UNAVAILABLE"
-                
+
                 else:
                     return "BAD_REQUEST"
-            
 
     def mainloop(self):
         while 1:
@@ -215,35 +202,34 @@ class DispatcherAppLink(threading.Thread):
             data = self.sock.recv(dataLen)
             if not data: break
             resp = self.handleData(data)
-            self.sock.send(str(len(resp))+"#")
+            self.sock.send(str(len(resp)) + "#")
             self.sock.send(resp)
 
         self.sock.close()
 
-#kazde prichozi pripojeni na dispatcher bude mit svuj thread, s okolim
-#bude komunikovat skrz kolektor dat s vylucnym pristupem
+
+# kazde prichozi pripojeni na dispatcher bude mit svuj thread, s okolim
+# bude komunikovat skrz kolektor dat s vylucnym pristupem
 class DispatcherLink(threading.Thread):
-    tunnelRequest = False ## prepsat statickou promennou a metodu!!!!
+    tunnelRequest = False  ## prepsat statickou promennou a metodu!!!!
+
     def config(self, linkID, sock, clientIP):
         self.daemon = True
         self.collector = None
         self.linkID = linkID
         self.clientIP = clientIP
         self.sock = sock
-        self.sem = threading.Semaphore() # deprec.
-        self.semTunnel = threading.Semaphore() # a na zadost o tunel
-        self.semSock = threading.Semaphore() # a na odesilani pres socket (kvuli zadosti o tunel)
+        self.sem = threading.Semaphore()  # deprec.
+        self.semTunnel = threading.Semaphore()  # a na zadost o tunel
+        self.semSock = threading.Semaphore()  # a na odesilani pres socket (kvuli zadosti o tunel)
 
-    def requestTunnel(self, tunnelPort):
-        self.sendSafe("DISPATCHER_TUNNEL_REQUEST#"+str(tunnelPort))
-
-    def requestApp(self, tunnelPort): # deprec.
+    def requestApp(self, tunnelPort):  # deprec.
         try:
-            self.sendSafe("DISPATCHER_APP_REQUEST#"+str(tunnelPort))
+            self.sendSafe("DISPATCHER_APP_REQUEST#" + str(tunnelPort))
             return True
         except:
             return False
-        
+
     def run(self):
         try:
             self.mainloop()
@@ -256,11 +242,11 @@ class DispatcherLink(threading.Thread):
 
     def measureRTT(self):
         self.sendSafe("ECHO", requireAck=False)
-	t0 = time.time()
+        t0 = time.time()
         data = self.sock.recv(16)
-	t1 = time.time()
-	if data == "ECHO":
-            return str( int((t1-t0)*1000) ) #RTT v ms
+        t1 = time.time()
+        if data == "ECHO":
+            return str(int((t1 - t0) * 1000))  # RTT v ms
         else:
             return "N/A"
 
@@ -272,7 +258,7 @@ class DispatcherLink(threading.Thread):
             if data == "" or data == None:
                 break
             rtt = self.measureRTT()
-            dataWrapped = "{ 'ip':'"+str(self.clientIP)+"', 'data':"+data+", 'rtt':'"+rtt+"' }"            
+            dataWrapped = "{ 'ip':'" + str(self.clientIP) + "', 'data':" + data + ", 'rtt':'" + rtt + "' }"
             Collector.currCollector.setData(self.linkID, dataWrapped)
             time.sleep(1)
 
@@ -282,70 +268,43 @@ class DispatcherLink(threading.Thread):
         try:
             self.sock.send(data)
             if requireAck:
-                #print "reqack"
+                # print "reqack"
                 self.sock.settimeout(2)
                 if self.sock.recv(8) != "ACK": raise Exception("sendSafe_NACK")
                 self.sock.settimeout(None)
-                #print "gotack"
+                # print "gotack"
         except Exception as err:
             if requireAck: print "reqackFAIL"
             self.semSock.release()
             raise err
         self.semSock.release()
 
-    def getData(self): # deprec.
+    def getData(self):  # deprec.
         self.sem.acquire()
         data = self.data
         self.sem.release()
         return data
 
-    def setData(self, data): # deprec.
+    def setData(self, data):  # deprec.
         self.sem.acquire()
-        self.data = "{ 'ip':'"+str(self.clientIP)+"', 'data':"+data+" }"
+        self.data = "{ 'ip':'" + str(self.clientIP) + "', 'data':" + data + " }"
         self.sem.release()
-        
+
 
 # datovy kolektor - sbira info z pripojenych dispatcher clientu
 class Collector():
     currCollector = None
-    allowedTunnel = None
-    semAllowedTunnel = threading.Semaphore()
-
-    # pokud je k dispozici tunel, pozadam o nej, jinak cekam, az nejaky k dispozici bude
-    # nemoznost pripojit se k tunelu zpusobi cekani
-    @staticmethod
-    def requestAllowedTunnel(tunnelPort):
-        try:
-            Collector.allowedTunnel.requestTunnel(tunnelPort)
-            return True
-        except:
-            return False
-
-    @staticmethod
-    def allowTunnel(link):
-        # pokud povoluji jiny link, nez je prave aktivni, prerusim tunely
-        # pokdu nebyl aktivni zadny, nic neprerusuju
-        if link != Collector.allowedTunnel and Collector.allowedTunnel != None:
-            Dispatcher.currDispatcher.interruptTunnels()
-        Collector.allowedTunnel = link
-
-    @staticmethod
-    def isAllowedTunnelUp():
-        try:
-            return Collector.currCollector.isLinkUp(Collector.allowedTunnel.linkID)
-        except Exception as err:
-            return False
-
+    
     @staticmethod
     def getBoundIP(IP):
         return Collector.currCollector.bindingGet(IP)
 
     @staticmethod
     def bindIP(clientIP, serverIP, leaseTime):
-        endTime = time.time()+leaseTime
+        endTime = time.time() + leaseTime
         Collector.currCollector.bindingSet(clientIP, serverIP, endTime)
 
-    #inicializacni metoda
+    # inicializacni metoda
     def __init__(self):
         self.daemon = True
         self.links = {}
@@ -355,6 +314,7 @@ class Collector():
         self.sem = threading.Semaphore()
         self.semBinding = threading.Semaphore()
         self.semThreads = threading.Semaphore()
+        self.interruptOnRebind = True
         Collector.currCollector = self
 
     def addActiveThreads(self, clientIP, thread1, thread2):
@@ -365,6 +325,7 @@ class Collector():
         self.activeThreads[clientIP].append(thread2)
         self.semThreads.release()
 
+    # removes only one thread, used by the thread itself on exiting
     def removeActiveThread(self, clientIP, thread):
         self.semThreads.acquire()
         if clientIP in self.activeThreads:
@@ -378,19 +339,32 @@ class Collector():
                 try:
                     thread.outSockClnt.close()
                     thread.inSockClnt.close()
-                except: pass
+                except:
+                    pass
         self.semThreads.release()
 
-    def getBindings(self, displayEndTime=False): # optimalizovat?
+    #clean exit for all threads (the socket exception is handled by the thread)
+    def shutdownAll(self):
+        self.semThreads.acquire()
+        for clientIP in self.activeThreads:
+            for thread in self.activeThreads[clientIP]:
+                try:
+                    thread.outSockClnt.close()
+                    thread.inSockClnt.close()
+                except:
+                    pass
+            self.semThreads.release()
+
+    def getBindings(self, displayEndTime=False):  # optimalizovat?
         self.semBinding.acquire()
         if displayEndTime:
             retVal = str(self.bindings)
         else:
             retVal = {}
             for clientIP in self.bindings:
-                retVal[clientIP]=self.bindings[clientIP][0]
+                retVal[clientIP] = self.bindings[clientIP][0]
             retVal = str(retVal)
-                    
+
         self.semBinding.release()
         return retVal
 
@@ -398,18 +372,17 @@ class Collector():
         expired = []
         self.semBinding.acquire()
         for clientIP in self.bindings:
-            if self.bindings[clientIP][1]<=currTime:
+            if self.bindings[clientIP][1] <= currTime:
                 expired.append(clientIP)
 
-        #zvlast odstraneni abych neodstranoval ve foru behem ktereho ctu
+        # zvlast odstraneni abych neodstranoval ve foru behem ktereho ctu
         for clientIP in expired:
             self.bindings.pop(clientIP)
-                
+
         self.semBinding.release()
-        
+
         for clientIP in expired:
             self.breakAllThreads(clientIP)
-
 
     def bindingGet(self, IP):
         self.semBinding.acquire()
@@ -419,18 +392,24 @@ class Collector():
             retVal = None
         self.semBinding.release()
         return retVal
-        
 
     def bindingSet(self, clientIP, serverIP, endTime):
         self.semBinding.acquire()
-        self.bindings[clientIP]=[serverIP, endTime]
+        if (clientIP in self.bindings) and self.interruptOnRebind:
+            # break current connections after binding to different server
+            if self.bindings[clientIP][0] != serverIP:
+                self.breakAllThreads(clientIP)
+        if serverIP in ["", " ", "none"]:
+            self.bindings.pop(clientIP)
+        else:
+            self.bindings[clientIP] = [serverIP, endTime]
         self.semBinding.release()
 
     def getLinks(self):
         self.sem.acquire()
         retVal = {}
         for linkID in self.links:
-            retVal[linkID]=self.links[linkID]
+            retVal[linkID] = self.links[linkID]
         self.sem.release()
         return retVal
 
@@ -462,10 +441,6 @@ class Collector():
         link.collector = self
         self.links[link.linkID] = link
         self.data[link.linkID] = "{}"
-        #pokud se jedna o "reconnect" driv povoleneho linku, updatuju allowedTunnel
-        if Collector.allowedTunnel != None:
-            if Collector.allowedTunnel.linkID == link.linkID:
-                Collector.allowedTunnel = link
         self.sem.release()
 
     def removeLink(self, identifier):
@@ -488,21 +463,23 @@ class Collector():
         self.data[linkID] = data
         self.sem.release()
 
+
 class DispatcherServer():
-    def __init__(self, listenOnIp, listenOnPort, localOnly=True):
+    def __init__(self, listenOnIp, listenOnPort, localOnly=True, interruptOnRebind=True):
         self.listenOnIP = listenOnIp
         self.listenOnPort = listenOnPort
         self.collector = Collector()
+        self.collector.interruptOnRebind = interruptOnRebind
         self.localOnly = localOnly
         timer = Timer()
         timer.config()
         timer.start()
-        
+
     def mainloop(self):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.bind((self.listenOnIP, self.listenOnPort))
         self.sock.listen(1)
-        
+
         while 1:
             clnt, (clnt_ip, clnt_no) = self.sock.accept()
             if clnt_ip != "127.0.0.1":
@@ -525,10 +502,12 @@ class DispatcherServer():
                 print err, "dispMainloop"
                 data = None
             if data == "TUNNEL_CLIENT":
-                try: linkID = clnt.recv(1024)
-                except: linkID = None
+                try:
+                    linkID = clnt.recv(1024)
+                except:
+                    linkID = None
                 if self.collector.isLinkUp(linkID):
-                    #pokud existuje link se stejnym id, nedovolim spojeni
+                    # pokud existuje link se stejnym id, nedovolim spojeni
                     clnt.send("ID_CONFLICT")
                     clnt.close()
                     print "! ID CONFLICT !", linkID
@@ -554,9 +533,10 @@ class DispatcherServer():
 # hlavni trida serveru - pouziti: disp = Dispatcher() nebo disp = Dispatcher("0.0.0.0", 2105)
 class Dispatcher():
     currDispatcher = None
-    def __init__(self, listenOnIp="0.0.0.0", listenOnPort=2107):
+
+    def __init__(self, listenOnIp="0.0.0.0", listenOnPort=2107, interruptOnRebind=True):
         self.tunnels = []
-        self.server = DispatcherServer(listenOnIp, listenOnPort)
+        self.server = DispatcherServer(listenOnIp, listenOnPort, interruptOnRebind)
         self.listenOnIp = listenOnIp
         self.listenOnPort = listenOnPort
         Dispatcher.currDispatcher = self
@@ -572,10 +552,9 @@ class Dispatcher():
         tun.config(appListenIp, appListenPort, serverPort)
         self.tunnels.append(tun)
 
-    def interruptTunnels(self): # deprec
-        print "!!!!! BREAKING TUNNELS"
+    def shutdownTunnels(self):
         for tun in self.tunnels:
-            tun.interrupt()
+            tun.shutdown()
 
     def startServer(self):
         print "================================================================================"
@@ -583,28 +562,30 @@ class Dispatcher():
         print "                             -----------------------"
         print ""
         print " Author:     Matous Jezersky - xjezer01@stud.fit.vutbr.cz"
-        print " Version:    "+SERVER_VERSION
+        print " Version:    " + SERVER_VERSION
         print ""
         print "--------------------------------------------------------------------------------"
         print ""
-        print " Listening on:   "+self.listenOnIp+":"+str(self.listenOnPort)
+        print " Listening on:   " + self.listenOnIp + ":" + str(self.listenOnPort)
         print " Tunnels: "
         tunCount = 0
         for tun in self.tunnels:
-            print "  ["+str(tunCount)+"]  client:"+str(tun.appListenPort)+" -> server:"+str(tun.serverPort)
+            print "  [" + str(tunCount) + "]  client:" + str(tun.appListenPort) + " -> server:" + str(tun.serverPort)
             tunCount += 1
         print ""
         print "================================================================================"
         for tun in self.tunnels:
             tun.start()
-        self.server.mainloop()
+        try:
+            self.server.mainloop()
+        except KeyboardInterrupt:
+            print "Server shutting down..."
+            Collector.currCollector.shutdownAll()
+            self.shutdownTunnels()
 
-    
 
 disp = Dispatcher(listenOnPort=2107)
+#disp = Dispatcher(listenOnPort=2107, interruptOnRebind=False)
 disp.addTunnel(9090, 9090)
 disp.addTunnel(2110, 80)
 disp.startServer()
-
-
-
