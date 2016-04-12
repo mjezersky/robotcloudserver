@@ -6,4 +6,5 @@ Currently in development...
 * UDP
 * logging
 * statisctics collecting
-* readme
+* extensive readme
+* Travis tests
