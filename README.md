@@ -1,6 +1,6 @@
 #Robot Management Cloud Server
 
-Currently in development...
+*Currently in development...*
 
 The whole system consists of several parts:
 * OpenVPN network
@@ -8,7 +8,7 @@ The whole system consists of several parts:
 * Dispatcher
 
 ## OpenVPN
-https://openvpn.net/index.php/open-source/downloads.html
+[Get OpenVPN](https://openvpn.net/index.php/open-source/downloads.html)
 
 The VPN network should be set up first, you can either make your own configuration, or use the one supplied in openvpn_config folder, more precisely
 in user_client, robot_client and server subfolders for the corresponding machine type.
@@ -20,7 +20,7 @@ One VPN network should be sufficient, given the client isolation, but two is str
 which would not cause any security issues, but could cause conflicts in robot identification.
 
 ## RMS extension
-http://wiki.ros.org/rms
+[Get RMS](http://wiki.ros.org/rms)
 
 RMS setup is to be done exactly as described on the RMS webpage, with the addition of copying and overwriting the files in *app* folder by the ones
 supplied from this repository, after the installation is complete.
@@ -30,7 +30,7 @@ You will find a line containing "VPN_SERVER_IP" and change the IP address there 
 
 ## Dispatcher
 
-Once the VPN and RMS with the extension are set up, you need to configure and run *dispatcher_server.py* on the server side, and *dispatcher_client.py* on the side
+Once the VPN and RMS with the extension are set up, you need to configure and run **dispatcher_server.py** on the server side, and **dispatcher_client.py** on the side
 of the robot.
 
 On the client, all you need to do is to edit the address of the server, you will find at the end of the script, simply change the "cloudServerIP" to the IP address
