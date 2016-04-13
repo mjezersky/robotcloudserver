@@ -10,7 +10,7 @@ The whole system consists of several parts:
 ## OpenVPN
 [Get OpenVPN](https://openvpn.net/index.php/open-source/downloads.html)
 
-The VPN network should be set up first, you can either make your own configuration, or use the one supplied in **openvpn_config** folder, in **user_client**, **robot_client** and **server subfolders** respectively.
+The VPN network should be set up first, you can either make your own configuration, or use the one supplied in **openvpn_config** folder, in **user_client**, **robot_client** and **server** subfolders respectively.
 
 If you are to use your own configuration, keep in mind that client isolation is strongly advised, as well as no routing being set.
 Since the robots and user clients need to communicate only with the server, adding these options would only cause security risk.
