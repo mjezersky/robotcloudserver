@@ -1,13 +1,6 @@
 #Robot Management Cloud Server
 
 Currently in development...
-###TODO:
-* UDP
-* logging
-* statisctics collecting
-* extensive readme
-* Travis tests
-
 
 The whole system consists of several parts:
 * OpenVPN network
@@ -53,3 +46,11 @@ Note: this is to be changed, in order to simplify the configuration of both clie
 
 ## Configuration
 work in progress...
+
+
+###TODO:
+* UDP
+* logging
+* statisctics collecting
+* extensive readme
+* Travis tests
