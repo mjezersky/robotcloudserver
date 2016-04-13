@@ -1,6 +1,6 @@
 #Robot Management Cloud Server
 
-*Currently in development...*
+*Please bear in mind that both the application and the documentation are still work in progress.*
 
 The whole system consists of several parts:
 * OpenVPN network
