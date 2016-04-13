@@ -1,2 +1,2 @@
-# Dispather readme
+# Dispatcher readme
 ...
