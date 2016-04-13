@@ -40,7 +40,7 @@ or add another network service by adding another line with the **"addTunnel"** m
 
 Details of both server and client configurations for Dispatcher can be found below.
 
-Note: this is to be changed, in order to simplify the configuration of both client and server scripts
+*Note: this is to be changed, in order to simplify the configuration of both client and server scripts*
 
 
 
