@@ -4,7 +4,7 @@
 
 The whole system consists of several parts:
 * OpenVPN network
-* RMS and it's extension
+* RMS (Robot Management System) and it's extension
 * Dispatcher
 
 ## OpenVPN
