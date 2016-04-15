@@ -37,11 +37,12 @@ of the VPN server for robots.
 On the server side, you may want to again navigate to the bottom lines of the script, and modify the listening ports or addresses for server threads,
 or add another network service by adding another line with the **"addTunnel"** method.
 
-Details of both server and client configurations for Dispatcher can be found incorresponding launch files.
+Details of both server and client configurations for Dispatcher can be found in corresponding launch files.
 
 
 ## Configuration
 work in progress...
+
 (VPN, RMS, Dispatcher)
 
 
