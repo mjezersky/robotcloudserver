@@ -6,6 +6,16 @@
 ## All rights reserved
 ## --------------------------------------------------------------
 
+
+## Example of a client for dispatcher control protocol.
+## This is a line client, allowing the user to enter the commands manually
+
+## Dispatcher control protocol commands:
+## Bclient_ip#server_ip#bind_time ... bind client_ip to server_ip for amount of seconds specified in bind_time
+##                                    ( example: link 10.8.0.10 to 10.7.0.5 for 1 minute: B10.8.0.1#10.7.0.5#60 )
+## GET_ALL_DATA                   ... returns the JSON object containing information about connected clients )
+## BINDINGS                       ... displays information about all bound IPs
+
 import socket
 
 try:
