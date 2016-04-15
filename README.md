@@ -49,8 +49,5 @@ work in progress...
 
 
 ###TODO:
-* UDP
-* logging
-* statisctics collecting
 * extensive readme
 * Travis tests
