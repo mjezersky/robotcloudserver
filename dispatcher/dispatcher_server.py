@@ -622,7 +622,7 @@ class Dispatcher():
         for tun in self.tunnels:
             tun.shutdown()
 
-    def serverShutdown(self):
+    def serverShutdown(self, unused1=None, unused2=None):
         logging.info("Shutting down.")
         print "Server shutting down..."
         Collector.currCollector.shutdownAll()
@@ -633,7 +633,7 @@ class Dispatcher():
         signal.signal(signal.SIGTERM, self.serverShutdown)
         logging.info("Starting up.")
         print "================================================================================"
-        print "                             |ROS Dispatcher Server|"
+        print "                             |  Dispatcher Server  |"
         print "                             -----------------------"
         print ""
         print " Author:     Matous Jezersky - xjezer01@stud.fit.vutbr.cz"
@@ -663,5 +663,5 @@ disp = Dispatcher(listenOnPort=2107)
 #disp = Dispatcher(listenOnPort=2107, interruptOnRebind=False)
 disp.addTunnel(9090, 9090)
 disp.addTunnel(2110, 80)
-disp.addTunnel(8080, 8080, udp=True, udpTunnelIP="localhost")
+#disp.addTunnel(8080, 8080, udp=True, udpTunnelIP="localhost")
 disp.startServer()
