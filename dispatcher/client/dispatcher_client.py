@@ -91,7 +91,7 @@ class DispatcherClient():
             self.sock.send(self.idStr) # respond with id
             return True
         except Exception as err:
-            print err, "- establish failed", self.dispServerIp, self.dispServerPort
+            print err, "- establish failed at", self.dispServerIp, self.dispServerPort
             return False
 
     def mainloop(self):
@@ -123,6 +123,11 @@ class DispatcherClient():
                 except Exception as err:
                     print err
                     print "Lost connection with dispatcher server"
-            time.sleep(1)
-            print "Reconnecting..."
+            try:
+                time.sleep(1)
+                print "Reconnecting..."
+            except:
+                print "\nExiting..."
+                self.sock.close()
+                exit()
         self.sock.close()
