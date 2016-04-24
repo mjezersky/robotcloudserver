@@ -6,7 +6,7 @@
 ## All rights reserved
 ## --------------------------------------------------------------
 
-#client ver 0.0.30
+#client ver 1.0.0
 
 import socket, threading, time, random
 try:
@@ -32,7 +32,8 @@ class DispatcherClient():
         self.msgFunction = None
         self.batteryTopic = batteryTopic
         self.batteryState = "N/A"
-        print "my id:", self.idStr
+        print "This client's ID:", self.idStr
+        print "Attempting to connect..."
 
     def getBatteryInfo(self):
         global ROSPY_AVAILABLE
@@ -90,7 +91,7 @@ class DispatcherClient():
             self.sock.send(self.idStr) # respond with id
             return True
         except Exception as err:
-            print err, "- establish failed", self.dispServerIp, self.dispServerPort
+            print err, "- establish failed at", self.dispServerIp, self.dispServerPort
             return False
 
     def mainloop(self):
@@ -112,23 +113,21 @@ class DispatcherClient():
                         else:
                             self.sock.send("NACK")
                 except KeyboardInterrupt: break
-                except IOError: break
+                # IOError is thrown by both sockets on unexpected closure and by rospy
+                except IOError as err:
+                    if err.message=="Broken pipe": #todo
+                        break
+                    else:
+                        print err
+                        print "Lost connection with dispatcher server"
                 except Exception as err:
                     print err
                     print "Lost connection with dispatcher server"
-            time.sleep(1)
-            print "Reconnecting..."
+            try:
+                time.sleep(1)
+                print "Reconnecting..."
+            except:
+                print "\nExiting..."
+                self.sock.close()
+                exit()
         self.sock.close()
-
-#demo function for message content, must return string
-def demoFunction():
-    return str(time.ctime())
-
-
-cloudServerIP = "10.8.0.1"
-robotName = socket.gethostname()
-
-dispClnt = DispatcherClient(robotName, cloudServerIP)
-dispClnt.msgFunction = demoFunction
-dispClnt.batteryTopic = "/battery"
-dispClnt.mainloop()

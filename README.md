@@ -29,8 +29,7 @@ You will find a line containing **"VPN_SERVER_IP"** and change the IP address th
 
 ## Dispatcher
 
-Once the VPN and RMS with the extension are set up, you need to configure and run **dispatcher_server.py** on the server side, and **dispatcher_client.py** on the side
-of the robot.
+Once the VPN and RMS with the extension are set up, you need to configure and run **launch_server.py** on the server side, and **launch_client.py** on the side of the robot.
 
 On the client, all you need to do is to edit the address of the server, you will find at the end of the script, simply change the **"cloudServerIP"** to the IP address
 of the VPN server for robots.
@@ -38,19 +37,15 @@ of the VPN server for robots.
 On the server side, you may want to again navigate to the bottom lines of the script, and modify the listening ports or addresses for server threads,
 or add another network service by adding another line with the **"addTunnel"** method.
 
-Details of both server and client configurations for Dispatcher can be found below.
-
-*Note: this is to be changed, in order to simplify the configuration of both client and server scripts*
-
+Details of both server and client configurations for Dispatcher can be found in corresponding launch files.
 
 
 ## Configuration
 work in progress...
 
+(VPN, RMS, Dispatcher)
+
 
 ###TODO:
-* UDP
-* logging
-* statisctics collecting
 * extensive readme
 * Travis tests

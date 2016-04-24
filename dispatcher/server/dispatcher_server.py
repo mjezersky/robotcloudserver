@@ -11,8 +11,12 @@ SERVER_VERSION = "1.0.0"
 import socket
 import threading
 import time
+import logging
+import signal
 
-BUFSIZE = 1024
+logging.basicConfig(format='%(asctime)s %(levelname)s: %(message)s', datefmt='%d.%m.%Y %H:%M:%S', filename='dispatcher_server.log',level=logging.DEBUG)
+
+BUFSIZE = 1024 # socket buffer size
 
 
 class TunnelCommThread(threading.Thread):
@@ -31,7 +35,7 @@ class TunnelCommThread(threading.Thread):
                 self.inSockClnt.send(data)  # odeslu je do RMS
         except Exception as err:
             print err, "commThread"
-            # print "tunnel disconnected, pls close client"
+            logging.warning("TunnelCommThread - %s", str(err))
         try:
             self.outSockClnt.close()
             self.inSockClnt.close()
@@ -39,12 +43,33 @@ class TunnelCommThread(threading.Thread):
             pass
         Collector.currCollector.removeActiveThread(self.clientIP, self)
 
+class TunnelUDPThread(threading.Thread):
+    def config(self, inSockClnt, outSockClnt, port):
+        self.daemon = True
+        self.inSockClnt = inSockClnt
+        self.outSockClnt = outSockClnt
+        self.port = port
+
+    def run(self):
+        while 1:
+            try:
+                data, addr = self.outSockClnt.recvfrom(BUFSIZE)  # prijmu data z tunelu
+                if not data: break
+                #send data to all bound IPs
+                for bound_addr in Collector.currCollector.getBoundTo(addr):
+                    self.inSockClnt.sendto(data, (bound_addr, self.port))
+            except Exception as err:
+                logging.warning("TunnelUDPThread - %s", str(err))
+                print err, "udpThread"
+
 
 class Tunnel(threading.Thread):
-    def config(self, appListenIP, appListenPort, serverPort):
+    def config(self, appListenIP, appListenPort, serverPort, udp=False, udpTunnelIP=None):
         self.appListenIP = appListenIP
         self.appListenPort = appListenPort
         self.serverPort = serverPort
+        self.udp = udp
+        self.udpTunnelIP = udpTunnelIP
         self.serverIP = None  # IP se ziska z bindingu
         self.daemon = True
 
@@ -67,48 +92,74 @@ class Tunnel(threading.Thread):
         # print "*Tunnel initialized*"
         # self.tunnelSem = threading.Semaphore()
 
-        # socket pro pripojeni klienta
-        self.inSock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.inSock.bind((self.appListenIP, self.appListenPort))
-        self.inSock.listen(1)
+        ## UDP TUNNEL
+        if self.udp:
 
-        self.inSockClnt = None
-
-        self.tunSrv = None
-        while 1:  # pripojeni od RMS
-            self.interrupted = False
-            # print "*RDY*", self.appListenPort
-
-            # klient se pripoji (pres javascript)
-            try:
-                self.inSockClnt, (clnt_ip, clnt_no) = self.inSock.accept()
-            except Exception as err:
-                print "FATAL ERROR!!!", err
-                self.inSockClnt.close()
+            if self.udpTunnelIP == None:
+                print "ERROR: UDP Tunnel Server IP must be set"
                 return
+            
+            self.inSockClnt = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            self.inSockClnt.bind((self.appListenIP, self.appListenPort))
 
-            self.serverIP = Collector.getBoundIP(clnt_ip)
-            if self.serverIP != None:
+            self.outSockClnt = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            self.outSockClnt.bind((self.udpTunnelIP, self.serverPort))
+
+            udpThread = TunnelUDPThread()
+            udpThread.config(self.inSockClnt, self.outSockClnt, self.serverPort)
+            udpThread.start()
+            
+            while 1:
+                data, addr = self.inSockClnt.recvfrom(1024)
+                serverIP = Collector.getBoundIP(clnt_ip)
+                if serverIP != None:
+                    self.outSockClnt.sendto(data, (serverIP, self.serverPort))
+
+        ## TCP TUNNEL 
+        else:
+            self.inSock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.inSock.bind((self.appListenIP, self.appListenPort))
+            self.inSock.listen(1)
+
+            self.inSockClnt = None
+            
+            while 1:
+                self.interrupted = False
+                # print "*RDY*", self.appListenPort
+
+                # client connects
                 try:
-                    # print "*attempting to connect*"
-                    # socket pro pripojeni na robota
-                    self.outSock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    self.outSock.connect((self.serverIP, self.serverPort))
-                    # print "*connected, starting comm threads*"
-                    self.outThread = TunnelCommThread()
-                    self.outThread.config(self.outSock, self.inSockClnt, clnt_ip)
-                    self.outThread.start()
-                    self.inThread = TunnelCommThread()
-                    self.inThread.config(self.inSockClnt, self.outSock, clnt_ip)
-                    self.inThread.start()
-                    Collector.currCollector.addActiveThreads(clnt_ip, self.outThread, self.inThread)
+                    self.inSockClnt, (clnt_ip, clnt_no) = self.inSock.accept()
                 except Exception as err:
-                    print "CONNERR:", err
+                    logging.error("Tunnel sock accept - %s", str(err))
+                    print "Fatal: accept failed -", err
                     self.inSockClnt.close()
-            else:  # serverIP None
-                print "*unbound connection attempt: " + clnt_ip + "*"
-                self.inSockClnt.close()
-        print "!!!!!!!!tunnel service stopped!!!!!!!!!"
+                    return
+
+                self.serverIP = Collector.getBoundIP(clnt_ip)
+                if self.serverIP != None:
+                    try:
+                        # print "*attempting to connect*"
+                        # socket pro pripojeni na robota
+                        self.outSock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        self.outSock.connect((self.serverIP, self.serverPort))
+                        # print "*connected, starting comm threads*"
+                        self.outThread = TunnelCommThread()
+                        self.outThread.config(self.outSock, self.inSockClnt, clnt_ip)
+                        self.outThread.start()
+                        self.inThread = TunnelCommThread()
+                        self.inThread.config(self.inSockClnt, self.outSock, clnt_ip)
+                        self.inThread.start()
+                        Collector.currCollector.addActiveThreads(clnt_ip, self.outThread, self.inThread)
+                    except Exception as err:
+                        print "CONNERR:", err
+                        self.inSockClnt.close()
+                else:  # serverIP None
+                    logging.info("Unbound connection attempt - %s", clnt_ip)
+                    print "*unbound connection attempt: " + clnt_ip + "*"
+                    self.inSockClnt.close()
+        print "Tunnel thread stopped"
+        logging.warning("Tunnel thread stopped.")
         self.inSockClnt.close()
 
 
@@ -119,7 +170,7 @@ class Timer(threading.Thread):
     def run(self):
         while 1:
             Collector.currCollector.unbindExpired(time.time())
-            time.sleep(2)  # asi neni nutne kontrolovat kazdou sekundu...
+            time.sleep(2) # period for checking for bind expiration
 
 
 class DispatcherAppLink(threading.Thread):
@@ -148,7 +199,7 @@ class DispatcherAppLink(threading.Thread):
                 return "{}"
             dataStr = "{ 'bindings': " + Collector.currCollector.getBindings()
             dataStr += ", 'clients': { " + ", ".join(dataArr) + " } }"
-            dataStr = dataStr.replace("'", '"')  # json chce " misto '
+            dataStr = dataStr.replace("'", '"')  # json requires " instead of '
             return dataStr
         elif data == "BINDINGS":
             return Collector.currCollector.getBindings()
@@ -233,12 +284,15 @@ class DispatcherLink(threading.Thread):
     def run(self):
         try:
             self.mainloop()
+        except socket.error:
+            pass
         except Exception as err:
             print err
         self.sock.close()
         if self.collector != None:
             self.collector.removeLink(self.linkID)
-        print "link closed"
+        logging.info("Dispatcher client disconnected - %s", self.clientIP)
+        print "Dispatcher client disconnected:", self.clientIP
 
     def measureRTT(self):
         self.sendSafe("ECHO", requireAck=False)
@@ -251,7 +305,8 @@ class DispatcherLink(threading.Thread):
             return "N/A"
 
     def mainloop(self):
-        print "new link", self.linkID
+        logging.info("Dispatcher client connected - %s", self.clientIP)
+        print "Dispatcher client connected:", self.clientIP
         while 1:
             self.sendSafe("DISPATCHER_DATA_REQUEST", requireAck=False)
             data = self.sock.recv(1024)
@@ -274,7 +329,9 @@ class DispatcherLink(threading.Thread):
                 self.sock.settimeout(None)
                 # print "gotack"
         except Exception as err:
-            if requireAck: print "reqackFAIL"
+            if requireAck:
+                logging.error("sendSafe: reqAck failed - %s", self.clientIP)
+                print "reqAck fail"
             self.semSock.release()
             raise err
         self.semSock.release()
@@ -336,11 +393,10 @@ class Collector():
         self.semThreads.acquire()
         if clientIP in self.activeThreads:
             for thread in self.activeThreads[clientIP]:
-                try:
-                    thread.outSockClnt.close()
-                    thread.inSockClnt.close()
-                except:
-                    pass
+                try: thread.outSockClnt.close()
+                except: pass
+                try: thread.inSockClnt.close()
+                except: pass
         self.semThreads.release()
 
     #clean exit for all threads (the socket exception is handled by the thread)
@@ -355,7 +411,16 @@ class Collector():
                     pass
             self.semThreads.release()
 
-    def getBindings(self, displayEndTime=False):  # optimalizovat?
+    def getBoundTo(self, serverIP):
+        self.semBinding.acquire()
+        retVal = []
+        for clientIP in self.bindings:
+            if self.bindings[clientIP][0] == serverIP:
+                retVal.append = clientIP
+        self.semBinding.release()
+        return retVal
+
+    def getBindings(self, displayEndTime=False):
         self.semBinding.acquire()
         if displayEndTime:
             retVal = str(self.bindings)
@@ -493,7 +558,8 @@ class DispatcherServer():
                     if self.localOnly and clnt_ip != '127.0.0.1':
                         clnt.send("NACK")
                         data = ""
-                        print "Warning: client app connection attempt from", clnt_ip
+                        logging.warning("Dispatcher control connection attempt from %s", clnt_ip)
+                        print "Warning: dispatcher control connection attempt from", clnt_ip
                     else:
                         clnt.send("ACK")
                 else:
@@ -534,10 +600,10 @@ class DispatcherServer():
 class Dispatcher():
     currDispatcher = None
 
-    def __init__(self, listenOnIp="0.0.0.0", listenOnPort=2107, interruptOnRebind=True):
+    def __init__(self, listenOnIP="0.0.0.0", listenOnPort=2107, interruptOnRebind=True):
         self.tunnels = []
-        self.server = DispatcherServer(listenOnIp, listenOnPort, interruptOnRebind)
-        self.listenOnIp = listenOnIp
+        self.server = DispatcherServer(listenOnIP, listenOnPort, interruptOnRebind)
+        self.listenOnIP = listenOnIP
         self.listenOnPort = listenOnPort
         Dispatcher.currDispatcher = self
 
@@ -547,18 +613,27 @@ class Dispatcher():
     #       disp.addTunnel(80, 2106)
     # tunelovani portu 80 (localhost) pres port 80 (tunnel.hostname.cz):
     #       disp.addTunnel(80, 80, appListenIp="localhost", tunListenIp="tunnel.hostname.cz")
-    def addTunnel(self, appListenPort, serverPort, appListenIp="0.0.0.0"):
+    def addTunnel(self, appListenPort, serverPort, appListenIP="0.0.0.0", udp=False, udpTunnelIP=None):
         tun = Tunnel()
-        tun.config(appListenIp, appListenPort, serverPort)
+        tun.config(appListenIP, appListenPort, serverPort, udp, udpTunnelIP)
         self.tunnels.append(tun)
 
     def shutdownTunnels(self):
         for tun in self.tunnels:
             tun.shutdown()
 
+    def serverShutdown(self, unused1=None, unused2=None):
+        logging.info("Shutting down.")
+        print "\nServer shutting down..."
+        Collector.currCollector.shutdownAll()
+        self.shutdownTunnels()
+        exit()
+
     def startServer(self):
+        signal.signal(signal.SIGTERM, self.serverShutdown)
+        logging.info("Starting up.")
         print "================================================================================"
-        print "                             |ROS Dispatcher Server|"
+        print "                             |  Dispatcher Server  |"
         print "                             -----------------------"
         print ""
         print " Author:     Matous Jezersky - xjezer01@stud.fit.vutbr.cz"
@@ -566,11 +641,13 @@ class Dispatcher():
         print ""
         print "--------------------------------------------------------------------------------"
         print ""
-        print " Listening on:   " + self.listenOnIp + ":" + str(self.listenOnPort)
+        print " Listening on:   " + self.listenOnIP + ":" + str(self.listenOnPort)
         print " Tunnels: "
         tunCount = 0
         for tun in self.tunnels:
-            print "  [" + str(tunCount) + "]  client:" + str(tun.appListenPort) + " -> server:" + str(tun.serverPort)
+            if tun.udp == True: protocol="(UDP)"
+            else: protocol="(TCP)"
+            print "  [" + str(tunCount) + "]  client:" + str(tun.appListenPort) + " -> server:" + str(tun.serverPort) + " \t" + protocol
             tunCount += 1
         print ""
         print "================================================================================"
@@ -579,13 +656,5 @@ class Dispatcher():
         try:
             self.server.mainloop()
         except KeyboardInterrupt:
-            print "Server shutting down..."
-            Collector.currCollector.shutdownAll()
-            self.shutdownTunnels()
+            self.serverShutdown()
 
-
-disp = Dispatcher(listenOnPort=2107)
-#disp = Dispatcher(listenOnPort=2107, interruptOnRebind=False)
-disp.addTunnel(9090, 9090)
-disp.addTunnel(2110, 80)
-disp.startServer()
