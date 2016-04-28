@@ -65,6 +65,7 @@
 					tableStr += '<td data-title="Message">' + payload.clients[robot].data.message + "</td> ";
 					tableStr += '<td data-title="Battery">' + payload.clients[robot].data.battery + "</td> ";
 					tableStr += '<td data-title="RTT">' + payload.clients[robot].rtt + "</td> ";
+
 					if (boundToMe) {	tableStr += '<td> <a href="#" onclick="bindTo(this,' + "''" + ')">Unbind</a> </td> '; }
 					else { 
 						if ($("#hidden_ip_container").html()==robotIP) {

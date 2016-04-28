@@ -22,7 +22,7 @@
 }
 
 #hidden_ip_container {
-	display: none;
+	visibility: hidden;
 }
 
 /* kazdy lichy (indexovano od 0) radek bude sedy */
