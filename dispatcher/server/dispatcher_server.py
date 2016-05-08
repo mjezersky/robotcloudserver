@@ -6,7 +6,7 @@
 ## All rights reserved
 ## --------------------------------------------------------------
 
-SERVER_VERSION = "1.0.0"
+SERVER_VERSION = "1.0.1"
 
 import socket
 import threading
@@ -205,7 +205,7 @@ class DispatcherAppLink(threading.Thread):
             return Collector.currCollector.getBindings()
         else:
             if len(data) > 0:
-                if data[0] == "G":
+                if data[0] == "G": # deprec?
                     try:
                         linkID = data[1::]
                         dataDict = Collector.currCollector.getData()
@@ -220,16 +220,6 @@ class DispatcherAppLink(threading.Thread):
                         content = data[1::]
                         ips = content.split("#")
                         Collector.bindIP(ips[0], ips[1], int(ips[2]))
-                        return "ACK"
-                    except Exception as err:
-                        print err
-                        return "UNAVAILABLE"
-
-                # !! debug only
-                elif data[0] == "X":
-                    # XclientIP break all connections to the server from clientIP
-                    try:
-                        Collector.currCollector.breakAllThreads(data[1::])
                         return "ACK"
                     except Exception as err:
                         print err
