@@ -2,6 +2,13 @@
 
 *Please bear in mind that both the application and the documentation are still work in progress.*
 
+## About the project
+This software solution enables you to control, manage and supervise ROS-based robots. It allows you secure remote access, and is compatible with any third party application protocol, as it offers routing and port mapping independent on the payload or type of packet.
+
+The possible usage of this software is very wide, ranging from home use, while making a single robot accessible from network, to remote lab management, where you can control robots in the lab, deploy software on them, connect through SSH and all of that from the comfort of your home.
+The protocol, which is used for configuration of the routing tables in the reverse proxy server is simple enough to be used in any other application that you might have developed, or might want to, as it is completely independent of the RMS system, which was simply chosen as a tested and rich UI with user authentication.
+
+
 The whole system consists of several parts:
 * OpenVPN network
 * RMS (Robot Management System) and it's extension
@@ -17,6 +24,8 @@ Since the robots and user clients need to communicate only with the server, addi
 
 One VPN network should be sufficient, given the client isolation, but two is strongly recommended, so a user cannot create a fake robot connection,
 which would not cause any security issues, but could cause conflicts in robot identification.
+
+There are tools for OpenVPN configuration and key setup ready in 
 
 ## RMS extension
 [Get RMS](http://wiki.ros.org/rms)
@@ -38,13 +47,6 @@ On the server side, you may want to again navigate to the bottom lines of the sc
 or add another network service by adding another line with the **"addTunnel"** method.
 
 Details of both server and client configurations for Dispatcher can be found in corresponding launch files.
-
-
-## Configuration
-work in progress...
-
-(VPN, RMS, Dispatcher)
-
 
 ###TODO:
 * extensive readme
