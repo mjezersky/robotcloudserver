@@ -45,3 +45,6 @@ On the server side, you may want to again navigate to the bottom lines of the sc
 or add another network service by adding another line with the **"addTunnel"** method.
 
 Details of both server and client configurations for Dispatcher can be found in corresponding launch files.
+
+## Docker
+The server part of the application is also available as a Docker image, information on running it is available in it's Docker repository - [mjezersky/robotcloudserver](https://hub.docker.com/r/mjezersky/robotcloudserver/).
