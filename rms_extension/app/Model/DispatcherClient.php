@@ -1,11 +1,10 @@
+<?php
 /*
 Author: Matouš Jezerský
 
 Dispatcher - PHP interface utilizing Dispatcher configuration protocol
 
 */
-
-<?php
 
 class DispatcherClient extends AppModel {
 
