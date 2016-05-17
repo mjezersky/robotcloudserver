@@ -30,8 +30,8 @@ There are tools for OpenVPN configuration and key setup ready in
 ## RMS extension
 [Get RMS](http://wiki.ros.org/rms)
 
-RMS setup is to be done exactly as described on the RMS webpage, with the addition of copying and overwriting the files in *app* folder by the ones
-supplied from this repository (*rms_extension/app*), after the installation is complete.
+RMS setup is to be done exactly as described on the RMS webpage, with the addition of copying and overwriting the files in **app** folder by the ones
+supplied from this repository (**rms_extension/app**), after the installation is complete.
 
 Once you complete the installation and copy the required files, you need to navigate to the installation folder and modify file located in **RMS_FOLDER/app/config/bootstrap.php**
 You will find a line containing **"VPN_SERVER_IP"** and change the IP address there to the address of the VPN server, to which user clients will connect.
