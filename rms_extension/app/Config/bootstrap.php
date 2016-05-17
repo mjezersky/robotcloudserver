@@ -14,7 +14,7 @@
 
 // Server VPN IP address - is used by clients to connect over rosbridge and mjpeg
 // use Configure::read('VPN_SERVER_IP') to retrieve the data
-Configure::write('VPN_SERVER_IP', '10.8.0.1');
+Configure::write('VPN_SERVER_IP', '10.9.0.1');
 
 // setup a 'default' cache configuration for use in the application
 Cache::config('default', array('engine' => 'File'));
