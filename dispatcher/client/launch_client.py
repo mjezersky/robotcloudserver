@@ -24,7 +24,10 @@ clientName = socket.gethostname()
 ##                    if rospy module is not available, this argument is ignored
 ##                    if set to None or ignored, /sys/class/power_supply/BAT0/capacity is used
 ##                    (default None)
-dispClnt = DispatcherClient(clientName, dispatcherServerIP, batteryTopic="/battery")
+dispClnt = DispatcherClient(clientName, dispatcherServerIP)
+
+## Or launch the client, getting battery info from the topic /battery
+# dispClnt = DispatcherClient(clientName, dispatcherServerIP, batteryTopic="/battery")
 
 ## Custom function for the message, that will be displayed in dispatcher interface
 ## Return value of the function has to be string
