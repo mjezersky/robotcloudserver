@@ -1,7 +1,5 @@
 #Robot Management Cloud Server
 
-*Please bear in mind that both the application and the documentation are still work in progress.*
-
 ## About the project
 This software solution enables you to control, manage and supervise ROS-based robots. It allows you secure remote access, and is compatible with any third party application protocol, as it offers routing and port mapping independent on the payload or type of packet.
 
@@ -47,7 +45,3 @@ On the server side, you may want to again navigate to the bottom lines of the sc
 or add another network service by adding another line with the **"addTunnel"** method.
 
 Details of both server and client configurations for Dispatcher can be found in corresponding launch files.
-
-###TODO:
-* extensive readme
-* Travis tests
