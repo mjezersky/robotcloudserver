@@ -66,7 +66,7 @@
 						}
 					}
 					if (!$found) {
-						echo '<td>N/A</td><td>N/A</td>';
+						echo '<td>N/A</td><td>N/A</td><td>N/A</td><td>N/A</td>';
 					}
 				?>
 				</td>

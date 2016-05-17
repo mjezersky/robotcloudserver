@@ -1,3 +1,11 @@
+
+/*
+Author: Matouš Jezerský
+
+Dispatcher - PHP interface.
+*/
+
+
 <?php
 function getJSON() {
 	$ip = "localhost";
