@@ -1,12 +1,10 @@
-
+<?php
 /*
 Author: Matouš Jezerský
 
 Dispatcher - PHP interface.
 */
 
-
-<?php
 function getJSON() {
 	$ip = "localhost";
 	$port = 2107;
