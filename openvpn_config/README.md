@@ -3,7 +3,7 @@
 ## OpenVPN configuration
 In this folder, you can find two files that can be used for server configuration - one of them handles robots on port 2105, and the other handles users on port 2106.
 
-To get this setup to work, you first need to generate keys, which is what an open-source tool **easy-rsa** [(link)](https://openvpn.net/index.php/open-source/documentation/miscellaneous/77-rsa-key-management.html) can be used.
+To get this setup to work, you first need to generate keys, which is what an open-source tool **easy-rsa** [(link)](https://openvpn.net/index.php/open-source/documentation/miscellaneous/77-rsa-key-management.html) can be used for.
 
 ## RSA keys and certificates
 To make this process easier, a bash script has been made, utilizing OpenVPN's easy-rsa.
