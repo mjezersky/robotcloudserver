@@ -10,7 +10,7 @@ def demoFunction():
     return str(time.ctime())
 
 ## IP address of dispatcher server to connect to
-dispatcherServerIP = "localhost"
+dispatcherServerIP = "10.8.0.1"
 
 ## Unique ID (name) of the dispatcher client
 clientName = socket.gethostname()

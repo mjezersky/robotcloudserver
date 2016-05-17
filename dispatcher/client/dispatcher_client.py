@@ -9,6 +9,8 @@
 #client ver 1.0.0
 
 import socket, threading, time, random
+
+# check for rospy availability
 try:
     import rospy
     from std_msgs.msg import String
@@ -17,9 +19,10 @@ except ImportError:
     ROSPY_AVAILABLE = False
     print "Warning: rospy module unavailable - Functions using it have been disabled."
 
+# socket buffer size
 BUFSIZE = 1024
 
-
+# the main and only class of the client
 class DispatcherClient():
     def __init__(self, idStr, dispServerIp, dispServerPort=2107, batteryTopic = None):
         self.dispServerIp = dispServerIp
@@ -35,6 +38,7 @@ class DispatcherClient():
         print "This client's ID:", self.idStr
         print "Attempting to connect..."
 
+    # get battery information from the set source
     def getBatteryInfo(self):
         global ROSPY_AVAILABLE
         if (self.batteryTopic == None) or (not ROSPY_AVAILABLE):
@@ -45,12 +49,12 @@ class DispatcherClient():
         else:
             return self.batteryState
 
-    #rospy callback
+    # rospy callback
     def updateBattery(self, newState):
         # semaphore is unnecessary as we don't mind getting slightly outdated value
         self.batteryState = str(newState.data)
         
-
+    # update data that is sent to the dispatcher - battery info and message
     def updateData(self):
         self.dataSem.acquire()
         try: # battery info
@@ -62,17 +66,20 @@ class DispatcherClient():
             self.data["message"] = self.msgFunction()
         self.dataSem.release()
 
+    # change data that is sent to the dispatcher
     def setData(self, data):
         self.dataSem.acquire()
         self.data = data
         self.dataSem.release()
 
+    # get data that is sent to the dispatcher
     def getData(self):
         self.dataSem.acquire()
         retVal = str(self.data)
         self.dataSem.release()
         return retVal
 
+    # method for initialization and establishing of a connection
     def establishConnection(self):
         try:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -94,12 +101,14 @@ class DispatcherClient():
             print err, "- establish failed at", self.dispServerIp, self.dispServerPort
             return False
 
+    # main method of the client - it handles connecting to the server and also responds to the requests
     def mainloop(self):
         global ROSPY_AVAILABLE
         if ROSPY_AVAILABLE and self.batteryTopic != None:
             rospy.init_node('dclnt_bat_reader', anonymous=True)
             rospy.Subscriber(self.batteryTopic, String, self.updateBattery)
         while 1:
+            # try to establish connection
             if self.establishConnection():
 		print "Connected"
                 try:
