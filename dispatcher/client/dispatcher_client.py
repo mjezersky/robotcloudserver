@@ -6,15 +6,21 @@
 ## All rights reserved
 ## --------------------------------------------------------------
 
-#client ver 1.0.0
+#client ver 1.1.0
 
-import socket, threading, time, random
+import socket, threading, time, random, signal, sys
+
+# SIGINT handler (only active if rospy is enabled)
+def sigint_handler(signal, frame):
+        print '\nInterrupted\n'
+        sys.exit(0)
 
 # check for rospy availability
 try:
     import rospy
     from std_msgs.msg import String
     ROSPY_AVAILABLE = True
+    signal.signal(signal.SIGINT, sigint_handler)
 except ImportError:
     ROSPY_AVAILABLE = False
     print "Warning: rospy module unavailable - Functions using it have been disabled."
@@ -97,6 +103,8 @@ class DispatcherClient():
                 raise Exception("bad data")
             self.sock.send(self.idStr) # respond with id
             return True
+        except KeyboardInterrupt:
+            exit()
         except Exception as err:
             print err, "- establish failed at", self.dispServerIp, self.dispServerPort
             return False
@@ -124,9 +132,6 @@ class DispatcherClient():
                 except KeyboardInterrupt: break
                 # IOError is thrown by both sockets on unexpected closure and by rospy
                 except IOError as err:
-                    if err.message=="Broken pipe": #todo
-                        break
-                    else:
                         print err
                         print "Lost connection with dispatcher server"
                 except Exception as err:
