@@ -34,6 +34,8 @@ supplied from this repository (**rms_extension/app**), after the installation is
 Once you complete the installation and copy the required files, you need to navigate to the installation folder and modify file located in **RMS_FOLDER/app/config/bootstrap.php**
 You will find a line containing **"VPN_SERVER_IP"** and change the IP address there to the address of the VPN server, to which user clients will connect.
 
+Also, RMS requires rosbrdige to be installed and running on the side of the robots. How to install and run rosbridge on the robots running ROS is described on the [official website]{http://wiki.ros.org/rosbridge_suite},
+
 ## Dispatcher
 
 Once the VPN and RMS with the extension are set up, you need to configure and run **launch_server.py** on the server side, and **launch_client.py** on the side of the robot.
