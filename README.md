@@ -25,7 +25,7 @@ Since the robots and user clients need to communicate only with the server, addi
 One VPN network should be sufficient, given the client isolation, but two is strongly recommended, so a user cannot create a fake robot connection,
 which would not cause any security issues, but could cause conflicts in robot identification.
 
-There are tools for OpenVPN configuration and key setup ready in 
+There are tools for OpenVPN configuration and key generation available in the **openvpn_config** folder. More information is also available in the readme file in that folder.
 
 ## RMS extension
 [Get RMS](http://wiki.ros.org/rms)
