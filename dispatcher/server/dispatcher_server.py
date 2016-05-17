@@ -6,7 +6,7 @@
 ## All rights reserved
 ## --------------------------------------------------------------
 
-SERVER_VERSION = "1.0.1"
+SERVER_VERSION = "1.1.0"
 
 import socket
 import threading
@@ -27,12 +27,13 @@ class TunnelCommThread(threading.Thread):
         self.clientIP = clientIP
 
     def run(self):
-        # print "tun comm linked"
         try:
             while 1:
-                data = self.outSockClnt.recv(BUFSIZE)  # prijmu data z tunelu
+                # receive data from the server
+                data = self.outSockClnt.recv(BUFSIZE)
                 if not data: break
-                self.inSockClnt.send(data)  # odeslu je do RMS
+                # send them to the client
+                self.inSockClnt.send(data)
         except Exception as err:
             print err, "commThread"
             logging.warning("TunnelCommThread - %s", str(err))
@@ -44,32 +45,38 @@ class TunnelCommThread(threading.Thread):
         Collector.currCollector.removeActiveThread(self.clientIP, self)
 
 class TunnelUDPThread(threading.Thread):
-    def config(self, inSockClnt, outSockClnt, port):
+    def config(self, inSockClnt, outSockClnt, addr):
         self.daemon = True
         self.inSockClnt = inSockClnt
         self.outSockClnt = outSockClnt
-        self.port = port
+        self.addr = addr
+        self.clientIP, port = addr
 
     def run(self):
-        while 1:
-            try:
-                data, addr = self.outSockClnt.recvfrom(BUFSIZE)  # prijmu data z tunelu
+        try:
+            while 1:
+                # receive data from server
+                data, server = self.outSockClnt.recvfrom(BUFSIZE)
                 if not data: break
-                #send data to all bound IPs
-                for bound_addr in Collector.currCollector.getBoundTo(addr):
-                    self.inSockClnt.sendto(data, (bound_addr, self.port))
-            except Exception as err:
-                logging.warning("TunnelUDPThread - %s", str(err))
-                print err, "udpThread"
+                # send data back to the client
+                # check whether the link still exists
+                udpThread = Collector.currCollector.getUDPThread(self.addr)
+                if udpThread == None: break
+                self.inSockClnt.sendto(data, self.addr)
+        except:
+            # not reporting any exceptions,the link will simply close
+            pass
+        self.outSockClnt.close()
+        Collector.currCollector.removeUDPThread(self.addr)
+        Collector.currCollector.removeActiveThread(self.clientIP, self)
 
 
 class Tunnel(threading.Thread):
-    def config(self, appListenIP, appListenPort, serverPort, udp=False, udpTunnelIP=None):
+    def config(self, appListenIP, appListenPort, serverPort, udp=False):
         self.appListenIP = appListenIP
         self.appListenPort = appListenPort
         self.serverPort = serverPort
         self.udp = udp
-        self.udpTunnelIP = udpTunnelIP
         self.serverIP = None  # IP se ziska z bindingu
         self.daemon = True
 
@@ -89,32 +96,53 @@ class Tunnel(threading.Thread):
         except: pass
 
     def run(self):
-        # print "*Tunnel initialized*"
-        # self.tunnelSem = threading.Semaphore()
 
         ## UDP TUNNEL
         if self.udp:
-
-            if self.udpTunnelIP == None:
-                print "ERROR: UDP Tunnel Server IP must be set"
-                return
-            
-            self.inSockClnt = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            self.inSockClnt.bind((self.appListenIP, self.appListenPort))
-
-            self.outSockClnt = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            self.outSockClnt.bind((self.udpTunnelIP, self.serverPort))
-
-            udpThread = TunnelUDPThread()
-            udpThread.config(self.inSockClnt, self.outSockClnt, self.serverPort)
-            udpThread.start()
+            self.inSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            self.inSock.bind((self.appListenIP, self.appListenPort))
+            # interrupt and shutdown will have the same effect, as UDP doesn't have active connections like TCP
+            self.inSockClnt = self.inSock 
+            self.outSock = None
             
             while 1:
-                data, addr = self.inSockClnt.recvfrom(1024)
-                serverIP = Collector.getBoundIP(clnt_ip)
-                if serverIP != None:
-                    self.outSockClnt.sendto(data, (serverIP, self.serverPort))
+                udpThread = None
+                try:
+                    data, (clnt_ip, clnt_port) = self.inSock.recvfrom(BUFSIZE)
+                    addr = (clnt_ip, clnt_port)
 
+                    self.serverIP = Collector.getBoundIP(clnt_ip)
+                    if self.serverIP != None:                
+
+                        # check whether there is an UDP thread for this address, if not, make one (port where to send data back is required)
+                        udpThread = Collector.currCollector.getUDPThread(addr)
+                        if udpThread == None:
+                            
+                            #binding = Collector.currCollector.setUDPBinding(clnt_ip, clnt_port)
+                            self.outSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                            self.outSock.settimeout(10)
+
+                            # relay the data to the server
+                            # this can be done as socket operations in python are atomic
+                            self.outSock.sendto(data, (self.serverIP, self.serverPort))
+
+                            udpThread = TunnelUDPThread()
+                            udpThread.config(self.inSock, self.outSock, addr)
+                            udpThread.start()
+                            Collector.currCollector.addUDPThread(addr, udpThread)
+                            Collector.currCollector.addActiveThreads(clnt_ip, udpThread, None)
+
+                        else:
+                            # relay the data to the server
+                            # this can be done as socket operations in python are atomic
+                            udpThread.outSockClnt.sendto(data, (self.serverIP, self.serverPort))
+
+                except socket.error as err:
+                    # won't print anything here, as it may be just unauthorized connections, which might take unnecessary resources
+                    #pass
+                    Collector.currCollector.removeUDPThread(addr)
+                    print err
+                
         ## TCP TUNNEL 
         else:
             self.inSock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -205,7 +233,7 @@ class DispatcherAppLink(threading.Thread):
             return Collector.currCollector.getBindings()
         else:
             if len(data) > 0:
-                if data[0] == "G": # deprec?
+                if data[0] == "G":
                     try:
                         linkID = data[1::]
                         dataDict = Collector.currCollector.getData()
@@ -338,7 +366,7 @@ class DispatcherLink(threading.Thread):
         self.sem.release()
 
 
-# datovy kolektor - sbira info z pripojenych dispatcher clientu
+# data collector - collects information from connected Dispatcher clients and manages shared data access
 class Collector():
     currCollector = None
     
@@ -351,25 +379,48 @@ class Collector():
         endTime = time.time() + leaseTime
         Collector.currCollector.bindingSet(clientIP, serverIP, endTime)
 
-    # inicializacni metoda
+    # initialization method
     def __init__(self):
         self.daemon = True
         self.links = {}
         self.data = {}
         self.bindings = {}
         self.activeThreads = {}
+        self.udpThreads = {}
         self.sem = threading.Semaphore()
         self.semBinding = threading.Semaphore()
         self.semThreads = threading.Semaphore()
+        self.semUDP = threading.Semaphore()
         self.interruptOnRebind = True
         Collector.currCollector = self
 
+
+    def addUDPThread(self, addr, thread):
+        self.semUDP.acquire()
+        self.udpThreads[addr] = thread
+        self.semUDP.release()
+
+    def removeUDPThread(self, addr):
+        self.semUDP.acquire()
+        try: self.udpThreads.pop(addr)
+        except: pass
+        self.semUDP.release()
+
+    def getUDPThread(self, addr):
+        self.semUDP.acquire()
+        try: thread = self.udpThreads[addr]
+        except: thread = None
+        self.semUDP.release()
+        return thread
+
+    # adds active threads to the list, so they can be terminated later when the connection is interrupted
     def addActiveThreads(self, clientIP, thread1, thread2):
         self.semThreads.acquire()
         if not clientIP in self.activeThreads:
             self.activeThreads[clientIP] = []
         self.activeThreads[clientIP].append(thread1)
-        self.activeThreads[clientIP].append(thread2)
+        if thread2 != None:
+            self.activeThreads[clientIP].append(thread2)
         self.semThreads.release()
 
     # removes only one thread, used by the thread itself on exiting
@@ -603,9 +654,9 @@ class Dispatcher():
     #       disp.addTunnel(80, 2106)
     # tunelovani portu 80 (localhost) pres port 80 (tunnel.hostname.cz):
     #       disp.addTunnel(80, 80, appListenIp="localhost", tunListenIp="tunnel.hostname.cz")
-    def addTunnel(self, appListenPort, serverPort, appListenIP="0.0.0.0", udp=False, udpTunnelIP=None):
+    def addTunnel(self, appListenPort, serverPort, appListenIP="0.0.0.0", udp=False):
         tun = Tunnel()
-        tun.config(appListenIP, appListenPort, serverPort, udp, udpTunnelIP)
+        tun.config(appListenIP, appListenPort, serverPort, udp)
         self.tunnels.append(tun)
 
     def shutdownTunnels(self):

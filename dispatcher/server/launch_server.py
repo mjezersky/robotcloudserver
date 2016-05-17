@@ -17,13 +17,13 @@ disp = Dispatcher(listenOnPort=2107)
 ## Optional arguments:
 ## appListenIP   ... bind the server to listen on specific IP/interface (default "0.0.0.0")
 ## udp           ... if set to True, protocol used will be UDP instead of TCP (default False)
-## udpTunnelIP   ... listen on IP/interface for UDP communication from the dispatcher clients !mandatory if udp is set to True! (default None)
 disp.addTunnel(9090, 9090)
-disp.addTunnel(2110, 80)
 
+## map 2222 (on cloud server) to 22 (on robot), so you can connect over SSH with port 2222
+disp.addTunnel(2222, 22) 
 
 ## Example of an UDP tunnel:
-#disp.addTunnel(20000, 20001, udp=True, udpTunnelIP="0.0.0.0")
+#disp.addTunnel(20000, 20001, udp=True)
 
 # Launch the server
 disp.startServer()
