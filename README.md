@@ -6,6 +6,7 @@ This software solution enables you to control, manage and supervise ROS-based ro
 The possible usage of this software is very wide, ranging from home use, while making a single robot accessible from network, to remote lab management, where you can control robots in the lab, deploy software on them, connect through SSH and all of that from the comfort of your home.
 The protocol, which is used for configuration of the routing tables in the reverse proxy server is simple enough to be used in any other application that you might have developed, or might want to, as it is completely independent of the RMS system, which was simply chosen as a tested and rich UI with user authentication.
 
+The project can be found on ROS wiki as well ([link](http://wiki.ros.org/robotcloudserver)).
 
 The whole system consists of several parts:
 * OpenVPN network
